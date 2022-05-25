@@ -1,9 +1,11 @@
 import flask
-from flask import Flask
+from flask import Flask, request
 
 app = Flask(__name__)
 
 COMPONENT_TREE = []
+
+CURRENT_CAMERA_STATE = {}
 
 
 def set_cors_headers(response: flask.Response):
@@ -38,6 +40,52 @@ def get_component_tree(tree_id):
         return set_cors_headers(response)
 
 
+@app.route('/camera_state/<int:scene_id>', methods=['GET', 'POST', 'OPTIONS'])
+def camera_state(scene_id):
+    if request.method == 'OPTIONS':
+        response = flask.make_response("Options supported")
+        response.status_code = 200
+        return set_cors_headers(response)
+    elif request.method == 'GET':
+        if scene_id in CURRENT_CAMERA_STATE:
+            response = flask.make_response(flask.jsonify(CURRENT_CAMERA_STATE[scene_id]))
+            response.status_code = 200
+            return set_cors_headers(response)
+        else:
+            response = flask.make_response("Error: No camera state found with the provided scene ID")
+            response.status_code = 404
+            return set_cors_headers(response)
+    elif request.method == 'POST':
+        CURRENT_CAMERA_STATE[scene_id] = request.form['state']
+        response = flask.make_response("Camera State updated")
+        response.status_code = 200
+        return set_cors_headers(response)
+    else:
+        response = flask.make_response("Method not recognized")
+        response.status_code = 501
+        return set_cors_headers(response)
+
+
+def load_camera_state():
+    CURRENT_CAMERA_STATE[0] = {
+        "position": {
+            "x": 38.25590670544343,
+            "y": 34.8853869591281,
+            "z": 31.929537717547742
+        },
+        "rotation": {
+            "_x": -0.8296086926953281,
+            "_y": 0.6801674658568955,
+            "_z": 0.6020464180012758,
+            "_order": "XYZ"
+        },
+        "fov": 45,
+        "near": 0.1,
+        "far": 1000,
+        "lastUpdate": 1653462775419
+    }
+
+
 def load_tree():
     tree = [
         {
@@ -59,6 +107,13 @@ def load_tree():
                                 {
                                     "sceneId": 0,
                                 },
+                            "children": [],
+                        },
+                        {
+                            "component": "element_tree",
+                            "data": {
+                                "sceneId": 0,
+                            },
                             "children": [],
                         },
                         {
@@ -93,10 +148,11 @@ def load_tree():
                             "component": "viewer",
                             "data": {
                                 "sceneId": 0,
-                                "pcos": [
+                                "elements": [
                                     {
                                         "elementId": 0,
-                                        "url": "http://127.0.0.1:5000/data/lion_takanawa/",
+                                        "source": "http://127.0.0.1:5000/data/lion_takanawa/",
+                                        "sceneType": "potree_point_cloud",
                                         "attributes": {
                                             "name": "Lion 1",
                                             "material": {
@@ -116,7 +172,8 @@ def load_tree():
                                     },
                                     {
                                         "elementId": 1,
-                                        "url": "http://127.0.0.1:5000/data/lion_takanawa/",
+                                        "source": "http://127.0.0.1:5000/data/lion_takanawa/",
+                                        "sceneType": "potree_point_cloud",
                                         "attributes": {
                                             "name": "Lion 2",
                                             "material": {
@@ -133,7 +190,65 @@ def load_tree():
                                                 "z": 10,
                                             }
                                         },
-                                    }
+                                    },
+                                    {
+                                        "elementId": 2,
+                                        "source":
+                                            [
+                                                {
+                                                    "start": {
+                                                        "x": -10,
+                                                        "y": -5,
+                                                        "z": 0
+                                                    },
+                                                    "end": {
+                                                        "x": -10,
+                                                        "y": 5,
+                                                        "z": 0
+                                                    }
+                                                }, {
+                                                    "start": {
+                                                        "x": -10,
+                                                        "y": 5,
+                                                        "z": 0
+                                                    },
+                                                    "end": {
+                                                        "x": 10,
+                                                        "y": 5,
+                                                        "z": 0
+                                                    }
+                                                }, {
+                                                    "start": {
+                                                        "x": 10,
+                                                        "y": 5,
+                                                        "z": 0
+                                                    },
+                                                    "end": {
+                                                        "x": 10,
+                                                        "y": -5,
+                                                        "z": 0
+                                                    }
+                                                }, {
+                                                    "start": {
+                                                        "x": 10,
+                                                        "y": -5,
+                                                        "z": 0
+                                                    },
+                                                    "end": {
+                                                        "x": -10,
+                                                        "y": -5,
+                                                        "z": 0
+                                                    }
+                                                },
+                                            ],
+                                        "sceneType": "line_set",
+                                        "attributes": {
+                                            "name": "Line Set 1",
+                                            "material": {
+                                                "color": "0x0000ff",
+                                            }
+                                        },
+                                    },
                                 ]
                             },
                             "children": [],
@@ -148,5 +263,6 @@ def load_tree():
 
 if __name__ == '__main__':  # calling  main
     load_tree()
+    load_camera_state()
     app.debug = True  # setting the debugging option for the application instance
     app.run()  # launching the flask's integrated development webserver
