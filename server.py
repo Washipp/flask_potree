@@ -249,6 +249,48 @@ def load_tree():
                                             }
                                         },
                                     },
+                                    {
+                                        "elementId": 3,
+                                        "source":
+                                            {
+                                                "x": {
+                                                    "x": 1,
+                                                    "y": 1,
+                                                    "z": 1
+                                                },
+
+                                                "y1": {
+                                                    "x": -3,
+                                                    "y": 2,
+                                                    "z": 10
+                                                },
+
+                                                "y2": {
+                                                    "x": 3,
+                                                    "y": 2,
+                                                    "z": 10
+                                                },
+
+                                                "y3": {
+                                                    "x": 3,
+                                                    "y": -2,
+                                                    "z": 10
+                                                },
+
+                                                "y4": {
+                                                    "x": -3,
+                                                    "y": -2,
+                                                    "z": 10
+                                                }
+                                            },
+                                        "sceneType": "camera_trajectory",
+                                        "attributes": {
+                                            "name": "Camera Frustum",
+                                            "material": {
+                                                "color": "00ff00",
+                                            }
+                                        },
+                                     }
                                 ]
                             },
                             "children": [],
