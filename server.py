@@ -31,7 +31,7 @@ def serve_data(file_name):
 def get_component_tree(tree_id):
     tree_id = int(tree_id)
     if len(COMPONENT_TREE) < tree_id:
-        response = flask.make_response("Error: No component tree found with the provided ID")
+        response = flask.make_response("[Server]: Error: No component tree found with the provided ID")
         response.status_code = 404
         return set_cors_headers(response)
     else:
@@ -40,49 +40,65 @@ def get_component_tree(tree_id):
         return set_cors_headers(response)
 
 
-@app.route('/camera_state/<int:scene_id>', methods=['GET', 'POST', 'OPTIONS'])
-def camera_state(scene_id):
+@app.route('/camera_state/<int:scene_id>', methods=['POST', 'OPTIONS'], defaults={'time_stamp': 0})
+@app.route('/camera_state/<int:scene_id>/<int:time_stamp>', methods=['GET', 'OPTIONS'])
+def camera_state(scene_id, time_stamp):
     if request.method == 'OPTIONS':
-        response = flask.make_response("Options supported")
+        response = flask.make_response("[Server]: Options supported")
         response.status_code = 200
         return set_cors_headers(response)
     elif request.method == 'GET':
         if scene_id in CURRENT_CAMERA_STATE:
-            response = flask.make_response(flask.jsonify(CURRENT_CAMERA_STATE[scene_id]))
-            response.status_code = 200
+            last_update = CURRENT_CAMERA_STATE[scene_id]['state']['lastUpdate']
+            print("##########")
+            print("Timestamp: " + str(time_stamp))
+            print("last_update: " + str(last_update))
+            print("##########")
+            if last_update < time_stamp:
+                response = flask.make_response(flask.jsonify(CURRENT_CAMERA_STATE[scene_id]))
+                response.status_code = 200
+            else:
+                response = flask.make_response(flask.jsonify("No new update"))
+                response.status_code = 200
             return set_cors_headers(response)
         else:
-            response = flask.make_response("Error: No camera state found with the provided scene ID")
+            response = flask.make_response(
+                flask.jsonify("[Server]: Error: No camera state found with the provided scene ID"))
             response.status_code = 404
             return set_cors_headers(response)
     elif request.method == 'POST':
-        CURRENT_CAMERA_STATE[scene_id] = request.form['state']
-        response = flask.make_response("Camera State updated")
+        new_state = request.json
+        if CURRENT_CAMERA_STATE[scene_id]['state']['lastUpdate'] < new_state['state']['lastUpdate']:
+            CURRENT_CAMERA_STATE[scene_id] = new_state
+        # front-end expects json
+        response = flask.make_response(flask.jsonify("[Server]: Camera State updated"))
         response.status_code = 200
         return set_cors_headers(response)
     else:
-        response = flask.make_response("Method not recognized")
+        response = flask.make_response(flask.jsonify("[Server]: Method not recognized"))
         response.status_code = 501
         return set_cors_headers(response)
 
 
 def load_camera_state():
     CURRENT_CAMERA_STATE[0] = {
-        "position": {
-            "x": 38.25590670544343,
-            "y": 34.8853869591281,
-            "z": 31.929537717547742
-        },
-        "rotation": {
-            "_x": -0.8296086926953281,
-            "_y": 0.6801674658568955,
-            "_z": 0.6020464180012758,
-            "_order": "XYZ"
-        },
-        "fov": 45,
-        "near": 0.1,
-        "far": 1000,
-        "lastUpdate": 1653462775419
+        "state": {
+            "position": {
+                "x": 38.25590670544343,
+                "y": 34.8853869591281,
+                "z": 31.929537717547742
+            },
+            "rotation": {
+                "_x": -0.8296086926953281,
+                "_y": 0.6801674658568955,
+                "_z": 0.6020464180012758,
+                "_order": "XYZ"
+            },
+            "fov": 45,
+            "near": 0.1,
+            "far": 1000,
+            "lastUpdate": 0
+        }
     }
 
 
@@ -116,24 +132,6 @@ def load_tree():
                             },
                             "children": [],
                         },
-                        {
-                            "component": "element_settings",
-                            "data":
-                                {
-                                    "sceneId": 0,
-                                    "elementId": 0,
-                                },
-                            "children": [],
-                        },
-                        {
-                            "component": "element_settings",
-                            "data":
-                                {
-                                    "sceneId": 0,
-                                    "elementId": 1,
-                                },
-                            "children": [],
-                        }
                     ],
                 },
                 {
@@ -148,13 +146,29 @@ def load_tree():
                             "component": "viewer",
                             "data": {
                                 "sceneId": 0,
+                                "camera": {
+                                    "position": {
+                                        "x": 38.25590670544343,
+                                        "y": 34.8853869591281,
+                                        "z": 31.929537717547742
+                                    },
+                                    "rotation": {
+                                        "_x": -0.8296086926953281,
+                                        "_y": 0.6801674658568955,
+                                        "_z": 0.6020464180012758,
+                                        "_order": "XYZ"
+                                    },
+                                    "fov": 60,
+                                    "near": 0.1,
+                                    "far": 10000,
+                                    "lastUpdate": 0
+                                },
                                 "elements": [
                                     {
                                         "elementId": 0,
-                                        "source": "http://127.0.0.1:5000/data/lion_takanawa/",
                                         "sceneType": "potree_point_cloud",
                                         "attributes": {
-                                            "name": "Lion 1",
+                                            "name": "Landscape",
                                             "material": {
                                                 "size": 2,
                                             },
@@ -162,17 +176,12 @@ def load_tree():
                                                 "x": 15,
                                                 "y": 0,
                                                 "z": 0,
-                                            },
-                                            "scale": {
-                                                "x": 10,
-                                                "y": 10,
-                                                "z": 10,
                                             }
                                         },
+                                        "source": "http://127.0.0.1:5000/data/vol_total/",
                                     },
                                     {
                                         "elementId": 1,
-                                        "source": "http://127.0.0.1:5000/data/lion_takanawa/",
                                         "sceneType": "potree_point_cloud",
                                         "attributes": {
                                             "name": "Lion 2",
@@ -183,16 +192,19 @@ def load_tree():
                                                 "x": -15,
                                                 "y": 0,
                                                 "z": 0,
-                                            },
-                                            "scale": {
-                                                "x": 10,
-                                                "y": 10,
-                                                "z": 10,
                                             }
                                         },
+                                        "source": "http://127.0.0.1:5000/data/lion_takanawa/",
                                     },
                                     {
                                         "elementId": 2,
+                                        "sceneType": "line_set",
+                                        "attributes": {
+                                            "name": "Line Set 1",
+                                            "material": {
+                                                "color": "#0000ff",
+                                            }
+                                        },
                                         "source":
                                             [
                                                 {
@@ -241,16 +253,17 @@ def load_tree():
                                                     }
                                                 },
                                             ],
-                                        "sceneType": "line_set",
-                                        "attributes": {
-                                            "name": "Line Set 1",
-                                            "material": {
-                                                "color": "0x0000ff",
-                                            }
-                                        },
                                     },
                                     {
                                         "elementId": 3,
+                                        "sceneType": "camera_trajectory",
+                                        "attributes": {
+                                            "name": "Camera Frustum",
+                                            "material": {
+                                                "color": "#00ff00",
+                                            },
+                                            "imageUrl": "http://127.0.0.1:5000/data/images/03903474_1471484089.jpg",
+                                        },
                                         "source":
                                             {
                                                 "x": {
@@ -283,14 +296,18 @@ def load_tree():
                                                     "z": 10
                                                 }
                                             },
-                                        "sceneType": "camera_trajectory",
+                                    },
+                                    {
+                                        "elementId": 4,
+                                        "sceneType": "default_point_cloud",
                                         "attributes": {
-                                            "name": "Camera Frustum",
+                                            "name": "Fragment Point Cloud",
                                             "material": {
-                                                "color": "00ff00",
-                                            }
+                                                "size": 5,
+                                            },
                                         },
-                                     }
+                                        "source": "http://127.0.0.1:5000/data/fragment.ply",
+                                    },
                                 ]
                             },
                             "children": [],
