@@ -1,13 +1,12 @@
 import flask
-from flask import Flask, request
+from flask import Flask
 
 app = Flask(__name__)
 
 COMPONENT_TREE = []
 
-CURRENT_CAMERA_STATE = {}
 
-
+# Allow all accesses by default.
 def set_cors_headers(response: flask.Response):
     response.headers.add("Access-Control-Allow-Origin", "*")
     response.headers.add("Access-Control-Allow-Headers", "*")
@@ -15,11 +14,12 @@ def set_cors_headers(response: flask.Response):
     return response
 
 
-@app.route('/')  # defining a route in the application
-def func():  # writing a function to be executed
+@app.route('/')
+def func():
     return app.root_path
 
 
+# Handle all data calls by returning it as octet-stream.
 @app.route('/data/<path:file_name>')
 def serve_data(file_name):
     response = flask.send_from_directory(app.root_path + '/data/', file_name, as_attachment=True)
@@ -27,7 +27,8 @@ def serve_data(file_name):
     return set_cors_headers(response)
 
 
-@app.route('/component-tree/<path:tree_id>')
+# Get the defined component-tree
+@app.route('/component_tree/<path:tree_id>')
 def get_component_tree(tree_id):
     tree_id = int(tree_id)
     if len(COMPONENT_TREE) < tree_id:
@@ -40,85 +41,37 @@ def get_component_tree(tree_id):
         return set_cors_headers(response)
 
 
-@app.route('/camera_state/<int:scene_id>', methods=['POST', 'OPTIONS'], defaults={'time_stamp': 0})
-@app.route('/camera_state/<int:scene_id>/<int:time_stamp>', methods=['GET', 'OPTIONS'])
-def camera_state(scene_id, time_stamp):
-    if request.method == 'OPTIONS':
-        response = flask.make_response("[Server]: Options supported")
-        response.status_code = 200
-        return set_cors_headers(response)
-    elif request.method == 'GET':
-        if scene_id in CURRENT_CAMERA_STATE:
-            last_update = CURRENT_CAMERA_STATE[scene_id]['state']['lastUpdate']
-            print("##########")
-            print("Timestamp: " + str(time_stamp))
-            print("last_update: " + str(last_update))
-            print("##########")
-            if last_update < time_stamp:
-                response = flask.make_response(flask.jsonify(CURRENT_CAMERA_STATE[scene_id]))
-                response.status_code = 200
-            else:
-                response = flask.make_response(flask.jsonify("No new update"))
-                response.status_code = 200
-            return set_cors_headers(response)
-        else:
-            response = flask.make_response(
-                flask.jsonify("[Server]: Error: No camera state found with the provided scene ID"))
-            response.status_code = 404
-            return set_cors_headers(response)
-    elif request.method == 'POST':
-        new_state = request.json
-        if CURRENT_CAMERA_STATE[scene_id]['state']['lastUpdate'] < new_state['state']['lastUpdate']:
-            CURRENT_CAMERA_STATE[scene_id] = new_state
-        # front-end expects json
-        response = flask.make_response(flask.jsonify("[Server]: Camera State updated"))
-        response.status_code = 200
-        return set_cors_headers(response)
-    else:
-        response = flask.make_response(flask.jsonify("[Server]: Method not recognized"))
-        response.status_code = 501
-        return set_cors_headers(response)
-
-
-def load_camera_state():
-    CURRENT_CAMERA_STATE[0] = {
-        "state": {
-            "position": {
-                "x": 38.25590670544343,
-                "y": 34.8853869591281,
-                "z": 31.929537717547742
-            },
-            "rotation": {
-                "_x": -0.8296086926953281,
-                "_y": 0.6801674658568955,
-                "_z": 0.6020464180012758,
-                "_order": "XYZ"
-            },
-            "fov": 45,
-            "near": 0.1,
-            "far": 1000,
-            "lastUpdate": 0
-        }
-    }
+@app.route('/get_update/')
+def get_update():
+    update = [
+        [0, 1, 0],
+        ['camera', 'position'],
+        [10, 10, 10]
+    ]
+    response = flask.make_response(flask.jsonify(update))
+    response.status_code = 200
+    return set_cors_headers(response)
 
 
 def load_tree():
     tree = [
         {
             "component": "row",
+            "componentId": 0,
             "data":
-                {"id": 0, },
+                {},
             "children": [
                 {
                     "component": "col",
+                    "componentId": 0,
                     "data":
                         {
-                            "id": 1,
                             "width": 3,
                         },
                     "children": [
                         {
                             "component": "general_settings",
+                            "componentId": 0,
                             "data":
                                 {
                                     "sceneId": 0,
@@ -127,23 +80,24 @@ def load_tree():
                         },
                         {
                             "component": "element_tree",
+                            "componentId": 1,
                             "data": {
                                 "sceneId": 0,
                             },
                             "children": [],
-                        },
-                    ],
+                        }, ],
                 },
                 {
                     "component": "col",
+                    "componentId": 1,
                     "data":
                         {
-                            "id": 2,
                             "width": 9,
                         },
                     "children": [
                         {
                             "component": "viewer",
+                            "componentId": 0,
                             "data": {
                                 "sceneId": 0,
                                 "camera": {
@@ -219,39 +173,38 @@ def load_tree():
                                                         "z": 0
                                                     }
                                                 }, {
-                                                    "start": {
-                                                        "x": -10,
-                                                        "y": 5,
-                                                        "z": 0
-                                                    },
-                                                    "end": {
-                                                        "x": 10,
-                                                        "y": 5,
-                                                        "z": 0
-                                                    }
-                                                }, {
-                                                    "start": {
-                                                        "x": 10,
-                                                        "y": 5,
-                                                        "z": 0
-                                                    },
-                                                    "end": {
-                                                        "x": 10,
-                                                        "y": -5,
-                                                        "z": 0
-                                                    }
-                                                }, {
-                                                    "start": {
-                                                        "x": 10,
-                                                        "y": -5,
-                                                        "z": 0
-                                                    },
-                                                    "end": {
-                                                        "x": -10,
-                                                        "y": -5,
-                                                        "z": 0
-                                                    }
+                                                "start": {
+                                                    "x": -10,
+                                                    "y": 5,
+                                                    "z": 0
+                                                }, "end": {
+                                                    "x": 10,
+                                                    "y": 5,
+                                                    "z": 0
+                                                }
+                                            }, {
+                                                "start": {
+                                                    "x": 10,
+                                                    "y": 5,
+                                                    "z": 0
                                                 },
+                                                "end": {
+                                                    "x": 10,
+                                                    "y": -5,
+                                                    "z": 0
+                                                }
+                                            }, {
+                                                "start": {
+                                                    "x": 10,
+                                                    "y": -5,
+                                                    "z": 0
+                                                },
+                                                "end": {
+                                                    "x": -10,
+                                                    "y": -5,
+                                                    "z": 0
+                                                }
+                                            },
                                             ],
                                     },
                                     {
@@ -311,10 +264,8 @@ def load_tree():
                                 ]
                             },
                             "children": [],
-                        }
-                    ],
-                },
-            ],
+                        }, ],
+                }, ],
         }
     ]
     COMPONENT_TREE.append(tree)
@@ -322,6 +273,5 @@ def load_tree():
 
 if __name__ == '__main__':  # calling  main
     load_tree()
-    load_camera_state()
     app.debug = True  # setting the debugging option for the application instance
-    app.run()  # launching the flask's integrated development webserver
+    app.run()
