@@ -1,9 +1,18 @@
+import json
+
 import flask
 from flask import Flask
+from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
 
+app.config['SECRET_KEY'] = 'secret!'
+socketio = SocketIO(app, logger=True, engineio_logger=True, cors_allowed_origins='*')
+
 COMPONENT_TREE = []
+
+
+# REST-API to get the data
 
 
 # Allow all accesses by default.
@@ -51,6 +60,36 @@ def get_update():
     response = flask.make_response(flask.jsonify(update))
     response.status_code = 200
     return set_cors_headers(response)
+
+
+# SocketIO
+
+CURRENT_CAMERA_STATE = {}
+
+
+@socketio.on('json')
+def test_message(message):
+    data = json.loads(message)
+    scene_id = data['sceneId']
+    state = data['state']
+    if len(CURRENT_CAMERA_STATE) == 0:
+        CURRENT_CAMERA_STATE[scene_id] = state
+    else:
+        last_update = CURRENT_CAMERA_STATE[scene_id]['lastUpdate']
+
+        if last_update + 30 < state['lastUpdate']:
+            CURRENT_CAMERA_STATE[scene_id] = state
+            emit('json', state, broadcast=True, include_self=False)
+
+
+@socketio.on('connect')
+def test_connect():
+    print('Client connected')
+
+
+@socketio.on('disconnect')
+def test_disconnect():
+    print('Client disconnected')
 
 
 def load_tree():
@@ -102,9 +141,9 @@ def load_tree():
                                 "sceneId": 0,
                                 "camera": {
                                     "position": {
-                                        "x": 38.25590670544343,
-                                        "y": 34.8853869591281,
-                                        "z": 31.929537717547742
+                                        "x": 138.25590670544343,
+                                        "y": 134.8853869591281,
+                                        "z": 131.929537717547742
                                     },
                                     "rotation": {
                                         "_x": -0.8296086926953281,
@@ -122,7 +161,7 @@ def load_tree():
                                         "elementId": 0,
                                         "sceneType": "potree_point_cloud",
                                         "attributes": {
-                                            "name": "Landscape",
+                                            "name": "ETH - CAB",
                                             "material": {
                                                 "size": 2,
                                             },
@@ -132,7 +171,7 @@ def load_tree():
                                                 "z": 0,
                                             }
                                         },
-                                        "source": "http://127.0.0.1:5000/data/vol_total/",
+                                        "source": "http://127.0.0.1:5000/data/mesh_simplified_converted/",
                                     },
                                     {
                                         "elementId": 1,
@@ -219,35 +258,8 @@ def load_tree():
                                         },
                                         "source":
                                             {
-                                                "x": {
-                                                    "x": 1,
-                                                    "y": 1,
-                                                    "z": 1
-                                                },
-
-                                                "y1": {
-                                                    "x": -3,
-                                                    "y": 2,
-                                                    "z": 10
-                                                },
-
-                                                "y2": {
-                                                    "x": 3,
-                                                    "y": 2,
-                                                    "z": 10
-                                                },
-
-                                                "y3": {
-                                                    "x": 3,
-                                                    "y": -2,
-                                                    "z": 10
-                                                },
-
-                                                "y4": {
-                                                    "x": -3,
-                                                    "y": -2,
-                                                    "z": 10
-                                                }
+                                                "t": [10, 10, 10],
+                                                "r": [5, 5, 5],
                                             },
                                     },
                                     {
@@ -261,7 +273,7 @@ def load_tree():
                                         },
                                         "source": "http://127.0.0.1:5000/data/fragment.ply",
                                     },
-                                ]
+                                ],
                             },
                             "children": [],
                         }, ],
@@ -273,5 +285,6 @@ def load_tree():
 
 if __name__ == '__main__':  # calling  main
     load_tree()
-    app.debug = True  # setting the debugging option for the application instance
-    app.run()
+    # app.debug = True  # setting the debugging option for the application instance
+    # app.run()
+    socketio.run(app)
