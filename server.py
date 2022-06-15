@@ -122,6 +122,38 @@ def load_tree():
                             "componentId": 1,
                             "data": {
                                 "sceneId": 0,
+                                "branches": [
+                                    {
+                                        "branchId": 0,
+                                        "name": "Group 1",
+                                        "ids": [2, 3, 5, 6],
+                                        "branches": [],
+                                        "visible": True,
+                                    },
+                                    {
+                                        "branchId": 1,
+                                        "name": "All Point-Clouds",
+                                        "ids": [],
+                                        "branches": [
+                                            {
+                                                "branchId": 2,
+                                                "name": "PointCloud Set 1",
+                                                "ids": [0, 1],
+                                                "branches": [],
+                                                "visible": True,
+                                            },
+                                            {
+                                                "branchId": 3,
+                                                "name": "PointCloud Set 2",
+                                                "ids": [4],
+                                                "branches": [],
+                                                "visible": True,
+                                            },
+                                        ],
+                                        "visible": True,
+                                    },
+
+                                ],
                             },
                             "children": [],
                         }, ],
@@ -151,9 +183,9 @@ def load_tree():
                                         "_z": 0.6020464180012758,
                                         "_order": "XYZ"
                                     },
-                                    "fov": 60,
+                                    "fov": 90,
                                     "near": 0.1,
-                                    "far": 10000,
+                                    "far": 100000000,
                                     "lastUpdate": 0
                                 },
                                 "elements": [
@@ -200,50 +232,11 @@ def load_tree():
                                         },
                                         "source":
                                             [
-                                                {
-                                                    "start": {
-                                                        "x": -10,
-                                                        "y": -5,
-                                                        "z": 0
-                                                    },
-                                                    "end": {
-                                                        "x": -10,
-                                                        "y": 5,
-                                                        "z": 0
-                                                    }
-                                                }, {
-                                                "start": {
-                                                    "x": -10,
-                                                    "y": 5,
-                                                    "z": 0
-                                                }, "end": {
-                                                    "x": 10,
-                                                    "y": 5,
-                                                    "z": 0
-                                                }
-                                            }, {
-                                                "start": {
-                                                    "x": 10,
-                                                    "y": 5,
-                                                    "z": 0
-                                                },
-                                                "end": {
-                                                    "x": 10,
-                                                    "y": -5,
-                                                    "z": 0
-                                                }
-                                            }, {
-                                                "start": {
-                                                    "x": 10,
-                                                    "y": -5,
-                                                    "z": 0
-                                                },
-                                                "end": {
-                                                    "x": -10,
-                                                    "y": -5,
-                                                    "z": 0
-                                                }
-                                            },
+                                                [[-10, -5, 0], [-10, 5, 0], ],
+                                                [[-10, 5, 0], [10, 5, 0], ],
+                                                [[-10, 5, 0], [10, 5, 0], ],
+                                                [[10, 5, 0], [10, -5, 0], ],
+                                                [[10, -5, 0], [-10, -5, 0], ],
                                             ],
                                     },
                                     {
@@ -258,8 +251,8 @@ def load_tree():
                                         },
                                         "source":
                                             {
-                                                "t": [10, 10, 10],
-                                                "r": [5, 5, 5],
+                                                "t": [5, 5, 5],
+                                                "r": [2, 2, 2, 0],
                                             },
                                     },
                                     {
@@ -272,6 +265,38 @@ def load_tree():
                                             },
                                         },
                                         "source": "http://127.0.0.1:5000/data/fragment.ply",
+                                    },
+                                    {
+                                        "elementId": 5,
+                                        "sceneType": "camera_trajectory",
+                                        "attributes": {
+                                            "name": "Camera Frustum",
+                                            "material": {
+                                                "color": "#0000ff",
+                                            },
+                                            "imageUrl": "http://127.0.0.1:5000/data/images/03903474_1471484089.jpg",
+                                        },
+                                        "source":
+                                            {
+                                                "t": [10, 10, 10],
+                                                "r": [0, 0, 0, 0],
+                                            },
+                                    },
+                                    {
+                                        "elementId": 6,
+                                        "sceneType": "camera_trajectory",
+                                        "attributes": {
+                                            "name": "Camera Frustum",
+                                            "material": {
+                                                "color": "#ff0000",
+                                            },
+                                            "imageUrl": "http://127.0.0.1:5000/data/images/03903474_1471484089.jpg",
+                                        },
+                                        "source":
+                                            {
+                                                "t": [15, 15, 15],
+                                                "r": [1, 1, 1, 0],
+                                            },
                                     },
                                 ],
                             },
