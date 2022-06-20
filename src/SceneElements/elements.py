@@ -2,18 +2,29 @@ import subprocess
 from abc import ABC, abstractmethod
 from enum import Enum
 from os.path import exists
-
-BASE_URL = 'http://127.0.0.1'
-PORT = 5000
+from sys import platform
 
 
 def ply_to_potree(ply_location: str, overwrite=False) -> str:
     base_converted_directory = './data/converted/'
-    base_command = './converter/PotreeConverter'
-    name = ply_location.split('/')[-1]
+    # TODO: check the OS and then execute the command.
 
+    name = ply_location.split('/')[-1]
     target = base_converted_directory + name
-    full_command = base_command + ' ' + ply_location + ' -o ' + target
+
+    full_command = ''
+
+    if platform == "linux":
+        # Linux
+        base_command = './converter/PotreeConverter'
+        full_command = base_command + ' ' + ply_location + ' -o ' + target
+    elif platform == "darwin":
+        # OS X
+        full_command = ''
+    elif platform == "win32":
+        # Windows...
+        full_command = ''
+
     if overwrite:
         subprocess.run(full_command + ' --overwrite', shell=True)
     elif not exists(target + '/cloud.js'):
@@ -24,6 +35,15 @@ def ply_to_potree(ply_location: str, overwrite=False) -> str:
     return target
 
 
+class Incrementer:
+    def __init__(self):
+        self.value = -1
+
+    def __call__(self) -> int:
+        self.value += 1
+        return self.value
+
+
 class BaseSceneElement(ABC):
     key_name = 'name'
     key_transformation = 'transformation'
@@ -32,15 +52,22 @@ class BaseSceneElement(ABC):
     key_source = 'source'
     key_attributes = 'attributes'
 
-    def __init__(self) -> None:
+    BASE_URL = 'http://127.0.0.1'
+    PORT = 5000
+
+    _increment: Incrementer = Incrementer()
+
+    def __init__(self, name: str) -> None:
         super().__init__()
         self.attributes = {}
-
-    def set_name(self, name: str):
+        self.element_id = self._get_next_id()
         self.attributes[self.key_name] = name
 
     def set_transformation(self, transformation):
         self.attributes[self.key_transformation] = transformation
+
+    def _get_next_id(self) -> int:
+        return self._increment()
 
     @abstractmethod
     def set_source(self, source):
@@ -51,7 +78,7 @@ class BaseSceneElement(ABC):
         pass
 
     @abstractmethod
-    def to_json(self, element_id: int):
+    def to_json(self):
         pass
 
 
@@ -63,29 +90,42 @@ class SceneElementType(Enum):
 
 
 class PotreePointCloud(BaseSceneElement):
+    key_material = 'material'
+    key_size = 'size'
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, data, name: str = "PotreePointCloud") -> None:
+        super().__init__(name)
         self.source = ''
+        self.data = data
         self.type = SceneElementType.POTREE_PC
+        self.material = {self.key_size: 2}
+        self.attributes[self.key_material] = self.material
 
     def set_source(self, url: str):
         self.source = url
 
     def convert_to_source(self):
-        # TODO
+        # TODO What other type of data to support? Library?
         # 1. Bring 'data' into .ply form
+
+        if type(self.data) is str and exists(self.data):
+            url = self.data
+        else:
+            self.set_source(self.data)
+            url = ''
+            return  # return as default since it fails
         # 2. Check if this point-cloud has been transformed before
-        url = './data/fragment.ply'
+        # url = './data/fragment.ply'
         # 3. Start new thread to convert it into Potree format if its new
-        path = BASE_URL + ':' + str(PORT) + ply_to_potree(url)[1:] + '/'
+        path = self.BASE_URL + ':' + str(self.PORT) + ply_to_potree(url)[1:] + '/'
         # 4. Add data-path to source
+        path = 'http://127.0.0.1:5000/data/mesh_simplified_converted/'
         self.set_source(path)
 
-    def to_json(self, element_id):
+    def to_json(self):
         return {
             self.key_scene_type: self.type.value,
-            self.key_element_id: element_id,
+            self.key_element_id: self.element_id,
             self.key_source: self.source,
             self.key_attributes: self.attributes
         }
@@ -93,8 +133,8 @@ class PotreePointCloud(BaseSceneElement):
 
 class DefaultPointCloud(BaseSceneElement):
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, name="Point Cloud") -> None:
+        super().__init__(name)
         self.source = ''
         self.type = SceneElementType.DEFAULT_PC
 
@@ -108,10 +148,10 @@ class DefaultPointCloud(BaseSceneElement):
         # 3. Add data-path to source
         self.set_source('path/to/source/default_pc')
 
-    def to_json(self, element_id: int):
+    def to_json(self):
         return {
             self.key_scene_type: self.type.value,
-            self.key_element_id: element_id,
+            self.key_element_id: self.element_id,
             self.key_source: self.source,
             self.key_attributes: self.attributes
         }
@@ -119,8 +159,8 @@ class DefaultPointCloud(BaseSceneElement):
 
 class LineSet(BaseSceneElement):
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, name="Line Set") -> None:
+        super().__init__(name)
         self.source = []
         self.type = SceneElementType.LINE_SET
 
@@ -133,10 +173,10 @@ class LineSet(BaseSceneElement):
         # 2. Call add source
         self.set_source([[(-10, -5, 0), (-10, 5, 0)]])
 
-    def to_json(self, element_id):
+    def to_json(self):
         return {
             self.key_scene_type: self.type.value,
-            self.key_element_id: element_id,
+            self.key_element_id: self.element_id,
             self.key_source: self.source,
             self.key_attributes: self.attributes
         }
@@ -147,8 +187,8 @@ class CameraTrajectory(BaseSceneElement):
     key_rotation = 'r'
     key_image_url = 'imageUrl'
 
-    def __init__(self, image_url: str) -> None:
-        super().__init__()
+    def __init__(self, image_url: str, name: str = "Camera Trajectory") -> None:
+        super().__init__(name)
         self.source = {}
         self.set_image(image_url)
         self.type = SceneElementType.CAMERA_TRAJECTORY
@@ -163,13 +203,13 @@ class CameraTrajectory(BaseSceneElement):
     def convert_to_source(self):
         # TODO
         # 1. Bring 'data' into translation-vector and rotation-quaternion form
-        # 2. Call add source
+        # 2. Call set source
         self.set_source(([5, 5, 5], [2, 2, 2, 0]))
 
-    def to_json(self, element_id):
+    def to_json(self):
         return {
             self.key_scene_type: self.type.value,
-            self.key_element_id: element_id,
+            self.key_element_id: self.element_id,
             self.key_source: self.source,
             self.key_attributes: self.attributes
         }

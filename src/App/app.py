@@ -2,9 +2,10 @@ from flask_socketio import SocketIO, emit
 from flask import Flask
 import flask
 import json
+import secrets
 
-from src.Components.base import Row, Viewer, Camera, ElementTree, Col, SceneSettings
-from src.SceneElements.elements import PotreePointCloud, DefaultPointCloud, LineSet, CameraTrajectory
+from src.Components.base import Row, Viewer, Camera, ElementTree, Col, SceneSettings, Group
+from src.SceneElements.elements import PotreePointCloud, DefaultPointCloud, LineSet, CameraTrajectory, BaseSceneElement
 
 
 # Allow all accesses by default.
@@ -25,56 +26,73 @@ class Tarasp:
     BASE_URL = 'http://127.0.0.1'
     PORT = 5000
 
-    _POTREE_POINT_CLOUDS = []
-    _POINT_CLOUDS = []
-    _LINE_SETS = []
-    _CAMERA_TRAJECTORIES = []
+    _POTREE_POINT_CLOUDS: [PotreePointCloud] = []
+    _POINT_CLOUDS: [DefaultPointCloud] = []
+    _LINE_SETS: [LineSet] = []
+    _CAMERA_TRAJECTORIES: [CameraTrajectory] = []
+
+    _GROUPS: [Group] = []
 
     def __init__(self, port: int):
         self.PORT = port
-        self.app.config['PORT'] = port
-        self.app.config['SECRET_KEY'] = 'secret!'  # what does this line do? Copied from example.
+        BaseSceneElement.PORT = port
+        self.app.config['SECRET_KEY'] = secrets.token_hex(16)
 
     def run(self):
         # 1. Convert SceneElements to source (url, r/t, array of tuples of int arrays)
         self.convert_scene_elements()
+
         # 2. Turn object tree into a json-component tree
         self.create_component_tree()
+
         # 3. Run the application. Open browser by default?
-        print(json.dumps(self.COMPONENT_TREE[0], indent=2))
-        self.socketio.run(self.app)
+        # print(json.dumps(self.COMPONENT_TREE[0], indent=2))
+        self.socketio.run(self.app, port=self.PORT)
 
     # Adds the scene elements to the default group
 
     def load_example_elements(self):
+        print('Loading example elements.')
         # Elements
-        pc1 = PotreePointCloud()
-        pc1.set_name("ETH-CAB")
-        self.add_potree_point_cloud(pc1)
-        #
-        # pc2 = PotreePointCloud()
-        # pc2.set_name("Lion")
-        # self.add_potree_point_cloud(pc2)
-        #
-        # pc3 = DefaultPointCloud()
-        # pc3.set_name("Fragment")
-        # self.add_point_cloud(pc3)
-        #
-        # ls = LineSet()
-        # ls.set_name('Line Set')
-        # self.add_line_set(ls)
-        #
-        # ct = CameraTrajectory(image_url='image/url')
-        # ct.set_name('Camera Trajectory')
-        # self.add_camera_trajectory(ct)
+        pc1 = PotreePointCloud('', name="ETH-CAB")
+        self.add_element(pc1)
+        print("Added PotreePointCloud 1")
+
+        pc2 = PotreePointCloud('', name="Lion")
+        self.add_element(pc2)
+        print("Added PotreePointCloud 2")
+
+        pc3 = DefaultPointCloud(name="Fragment")
+        self.add_element(pc3)
+        print("Added Default PC")
+
+        ls = LineSet(name='Line Set')
+        self.add_element(ls)
+        print("Added LineSet")
+
+        ct = CameraTrajectory(image_url='image/url', name='Camera Trajectory')
+        self.add_element(ct)
+        print("Added CameraTrajectory")
+
+    def add_element(self, element: BaseSceneElement):
+        if isinstance(element, PotreePointCloud):
+            self.add_potree_point_cloud(element)
+        elif isinstance(element, DefaultPointCloud):
+            self.add_point_cloud(element)
+        elif isinstance(element, LineSet):
+            self.add_line_set(element)
+        elif isinstance(element, CameraTrajectory):
+            self.add_camera_trajectory(element)
+        else:
+            # TODO throw error?
+            print("[Error]: Type of element unknown")
 
     def add_point_cloud(self, pc, name='Default PointCloud'):
         if isinstance(pc, DefaultPointCloud):
             self._POINT_CLOUDS.append(pc)
         elif isinstance(pc, str):
-            point_cloud = DefaultPointCloud()
+            point_cloud = DefaultPointCloud(name=name)
             point_cloud.set_source(pc)
-            point_cloud.set_name(name)
             self._POINT_CLOUDS.append(point_cloud)
 
         # TODO: what other ways could pc be? add them
@@ -83,9 +101,8 @@ class Tarasp:
         if isinstance(pc, PotreePointCloud):
             self._POTREE_POINT_CLOUDS.append(pc)
         elif isinstance(pc, str):
-            point_cloud = PotreePointCloud()
+            point_cloud = PotreePointCloud('', name=name)
             point_cloud.set_source(pc)
-            point_cloud.set_name(name)
             self._POINT_CLOUDS.append(point_cloud)
 
     def add_line_set(self, line_set):
@@ -93,6 +110,9 @@ class Tarasp:
 
     def add_camera_trajectory(self, ct):
         self._CAMERA_TRAJECTORIES.append(ct)
+
+    def add_group(self, group):
+        self._GROUPS.append(group)
 
     def convert_scene_elements(self):
         for pc in self._POINT_CLOUDS:
@@ -128,6 +148,8 @@ class Tarasp:
                 viewer.add_element(ct)
 
             element_tree = ElementTree()
+            for group in self._GROUPS:
+                element_tree.add_group(group)
 
             settings = SceneSettings()
             settings.set_scene_id(scene_id)

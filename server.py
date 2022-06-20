@@ -55,7 +55,11 @@ def get_update():
     update = [
         [0, 1, 0],
         ['camera', 'position'],
-        [10, 10, 10]
+        {
+            "x": 10,
+            "y": 10,
+            "z": 10,
+        }
     ]
     response = flask.make_response(flask.jsonify(update))
     response.status_code = 200
@@ -122,31 +126,31 @@ def load_tree():
                             "componentId": 1,
                             "data": {
                                 "sceneId": 0,
-                                "branches": [
+                                "groups": [
                                     {
-                                        "branchId": 0,
+                                        "groupId": 0,
                                         "name": "Group 1",
                                         "ids": [2, 3, 5, 6],
-                                        "branches": [],
+                                        "groups": [],
                                         "visible": True,
                                     },
                                     {
-                                        "branchId": 1,
+                                        "groupId": 1,
                                         "name": "All Point-Clouds",
                                         "ids": [],
-                                        "branches": [
+                                        "groups": [
                                             {
-                                                "branchId": 2,
+                                                "groupId": 2,
                                                 "name": "PointCloud Set 1",
                                                 "ids": [0, 1],
-                                                "branches": [],
+                                                "groups": [],
                                                 "visible": True,
                                             },
                                             {
-                                                "branchId": 3,
+                                                "groupId": 3,
                                                 "name": "PointCloud Set 2",
                                                 "ids": [4],
-                                                "branches": [],
+                                                "groups": [],
                                                 "visible": True,
                                             },
                                         ],
@@ -172,21 +176,13 @@ def load_tree():
                             "data": {
                                 "sceneId": 0,
                                 "camera": {
-                                    "position": {
-                                        "x": 138.25590670544343,
-                                        "y": 134.8853869591281,
-                                        "z": 131.929537717547742
-                                    },
-                                    "rotation": {
-                                        "_x": -0.8296086926953281,
-                                        "_y": 0.6801674658568955,
-                                        "_z": 0.6020464180012758,
-                                        "_order": "XYZ"
-                                    },
+                                    "position": [ 138.25590670544343,134.8853869591281,131.929537717547742
+                                    ],
+                                    "rotation": [ -0.8296086926953281,0.6801674658568955,0.6020464180012758,
+                                    ],
                                     "fov": 90,
                                     "near": 0.1,
                                     "far": 100000000,
-                                    "lastUpdate": 0
                                 },
                                 "elements": [
                                     {

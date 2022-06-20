@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from enum import Enum
 
-from src.SceneElements.elements import BaseSceneElement
+from src.SceneElements.elements import BaseSceneElement, Incrementer
 
 
 class ComponentType(Enum):
@@ -75,7 +75,7 @@ class Col(BaseComponent):
         for child in self.children:
             children_json.append(child.to_json(i))
             i += 1
-        print(self.component.value)
+
         return {
             self.key_component: self.component.value,
             self.key_component_id: self.component_id,
@@ -85,10 +85,17 @@ class Col(BaseComponent):
 
 
 class Group:
+    key_group_id = 'groupId'
+    key_name = 'name'
+    key_ids = 'ids'
+    key_groups = 'groups'
+    key_visible = 'visible'
+
+    _increment: Incrementer = Incrementer()
 
     def __init__(self, name: str) -> None:
         super().__init__()
-        self.group_id = -1
+        self.group_id = self._increment()
         self.name = name
         self.ids = []
         self.groups = []
@@ -100,30 +107,39 @@ class Group:
     def add_group(self, group):
         self.groups.append(group)
 
-    def to_json(self, group_id: int) -> dict:
-        self.group_id = group_id
-        print('Group parsed: ' + str(group_id))
+    def _get_next_id(self) -> int:
+        return self._increment()
+
+    def to_json(self) -> dict:
+        group_json = []
+        for group in self.groups:
+            group_json.append(group.to_json())
+        self.groups = group_json
+
         return {
-            "branchId": self.group_id,
-            "name": self.name,
-            "ids": self.ids,
-            "branches": self.groups,
-            "visible": self.visible
+            self.key_group_id: self.group_id,
+            self.key_name: self.name,
+            self.key_ids: self.ids,
+            self.key_groups: self.groups,
+            self.key_visible: self.visible
         }
 
 
 class ElementTree(BaseComponent):
     key_groups = 'groups'
-
-    groups = []
+    key_scene_id = 'sceneId'
 
     def __init__(self) -> None:
         super().__init__()
         self.groups = []
         self.component = ComponentType.ELEMENT_TREE
+        self.data[self.key_scene_id] = 0  # default
 
     def add_group(self, group: Group):
         self.groups.append(group)
+
+    def set_scene_id(self, scene_id: int):
+        self.data[self.key_scene_id] = scene_id
 
     def to_json(self, component_id: int) -> dict:
         self.component_id = component_id
@@ -131,7 +147,7 @@ class ElementTree(BaseComponent):
         group_json = []
         i = 0
         for group in self.groups:
-            group_json.append(group.to_json(i))
+            group_json.append(group.to_json())
             i += 1
         self.data[self.key_groups] = group_json
 
@@ -144,14 +160,14 @@ class ElementTree(BaseComponent):
 
 
 class SceneSettings(BaseComponent):
-    scene_id = 'sceneId'
+    key_scene_id = 'sceneId'
 
     def __init__(self) -> None:
         super().__init__()
         self.component = ComponentType.SCENE_SETTINGS
 
     def set_scene_id(self, scene_id):
-        self.data[self.scene_id] = scene_id
+        self.data[self.key_scene_id] = scene_id
 
     def to_json(self, component_id: int) -> dict:
         self.component_id = component_id
@@ -165,25 +181,27 @@ class SceneSettings(BaseComponent):
 
 
 class Camera:
-    position = []
-    rotation = []
-    fov = 60
-    near = 0.1
-    far = 100000
-    last_update = 0
+    key_position = 'position'
+    key_rotation = 'rotation'
+    key_fov = 'fov'
+    key_near = 'near'
+    key_far = 'far'
 
     def __init__(self) -> None:
         super().__init__()
+        self.position = [100, 100, 100]
+        self.rotation = [0.5, 0.5, 0.5]
+        self.fov = 60
+        self.near = 0.1
+        self.far = 100000
 
     def to_json(self) -> dict:
-
         return {
-            'position': self.position,
-            'rotation': self.rotation,
-            'fov': self.fov,
-            'near': self.near,
-            'far': self.far,
-            'lastUpdate': self.last_update
+            self.key_position: self.position,
+            self.key_rotation: self.rotation,
+            self.key_fov: self.fov,
+            self.key_near: self.near,
+            self.key_far: self.far,
         }
 
 
@@ -213,10 +231,8 @@ class Viewer(BaseComponent):
         self.data[self.key_camera] = self.camera.to_json()
 
         element_json = []
-        i = 0
         for elem in self.elements:
-            element_json.append(elem.to_json(i))
-            i += 1
+            element_json.append(elem.to_json())
         self.data[self.key_elements] = element_json
 
         return {
