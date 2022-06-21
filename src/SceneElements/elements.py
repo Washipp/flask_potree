@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from os.path import exists
 from sys import platform
+from typing import Union, List
 
 
 def ply_to_potree(ply_location: str, overwrite=False) -> str:
@@ -57,11 +58,15 @@ class BaseSceneElement(ABC):
 
     _increment: Incrementer = Incrementer()
 
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str, group: Union[str, List[str]] = "Default") -> None:
         super().__init__()
         self.attributes = {}
         self.element_id = self._get_next_id()
         self.attributes[self.key_name] = name
+        if isinstance(group, str):
+            self.group = [group]
+        else:
+            self.group = group
 
     def set_transformation(self, transformation):
         self.attributes[self.key_transformation] = transformation
@@ -93,8 +98,9 @@ class PotreePointCloud(BaseSceneElement):
     key_material = 'material'
     key_size = 'size'
 
-    def __init__(self, data, name: str = "PotreePointCloud") -> None:
-        super().__init__(name)
+    def __init__(self, data, name: str = "PotreePointCloud",
+                 group: Union[str, List[str]] = "Potree Point Clouds") -> None:
+        super().__init__(name, group)
         self.source = ''
         self.data = data
         self.type = SceneElementType.POTREE_PC
@@ -133,8 +139,8 @@ class PotreePointCloud(BaseSceneElement):
 
 class DefaultPointCloud(BaseSceneElement):
 
-    def __init__(self, name="Point Cloud") -> None:
-        super().__init__(name)
+    def __init__(self, name="Point Cloud", group: Union[str, List[str]] = "Default Point Clouds") -> None:
+        super().__init__(name, group)
         self.source = ''
         self.type = SceneElementType.DEFAULT_PC
 
@@ -159,8 +165,8 @@ class DefaultPointCloud(BaseSceneElement):
 
 class LineSet(BaseSceneElement):
 
-    def __init__(self, name="Line Set") -> None:
-        super().__init__(name)
+    def __init__(self, name="Line Set", group: Union[str, List[str]] = "Line Sets") -> None:
+        super().__init__(name, group)
         self.source = []
         self.type = SceneElementType.LINE_SET
 
@@ -187,10 +193,11 @@ class CameraTrajectory(BaseSceneElement):
     key_rotation = 'r'
     key_image_url = 'imageUrl'
 
-    def __init__(self, image_url: str, name: str = "Camera Trajectory") -> None:
-        super().__init__(name)
+    def __init__(self, image_url: str, name: str = "Camera Trajectory",
+                 group: Union[str, List[str]] = "Camera Trajectories") -> None:
+        super().__init__(name, group)
         self.source = {}
-        self.set_image(image_url)
+        self.set_image(self.BASE_URL+':'+str(self.PORT)+'/'+image_url)
         self.type = SceneElementType.CAMERA_TRAJECTORY
 
     def set_source(self, source: ([int], [int])):

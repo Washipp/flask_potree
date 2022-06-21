@@ -46,7 +46,7 @@ class Tarasp:
         self.create_component_tree()
 
         # 3. Run the application. Open browser by default?
-        # print(json.dumps(self.COMPONENT_TREE[0], indent=2))
+        print(json.dumps(self.COMPONENT_TREE[0], indent=2))
         self.socketio.run(self.app, port=self.PORT)
 
     # Adds the scene elements to the default group
@@ -84,8 +84,7 @@ class Tarasp:
         elif isinstance(element, CameraTrajectory):
             self.add_camera_trajectory(element)
         else:
-            # TODO throw error?
-            print("[Error]: Type of element unknown")
+            raise Exception("Trying to add unknown element: " + str(type(element)))
 
     def add_point_cloud(self, pc, name='Default PointCloud'):
         if isinstance(pc, DefaultPointCloud):
@@ -137,15 +136,19 @@ class Tarasp:
             viewer.set_scene_id(scene_id)
             for pc in self._POINT_CLOUDS:
                 viewer.add_element(pc)
+                self.update_groups(pc)
 
             for ppc in self._POTREE_POINT_CLOUDS:
                 viewer.add_element(ppc)
+                self.update_groups(ppc)
 
             for ls in self._LINE_SETS:
                 viewer.add_element(ls)
+                self.update_groups(ls)
 
             for ct in self._CAMERA_TRAJECTORIES:
                 viewer.add_element(ct)
+                self.update_groups(ct)
 
             element_tree = ElementTree()
             for group in self._GROUPS:
@@ -171,6 +174,25 @@ class Tarasp:
 
         else:
             self.COMPONENT_TREE.append([tree])
+
+    def update_groups(self, element: BaseSceneElement):
+        group_names = element.group
+        element_id = element.element_id
+        current_groups = self._GROUPS
+        for name in group_names:
+            found = False
+            for group in current_groups:
+                if group.name == name:  # found, group already exists
+                    current_groups = group.groups
+                    selected_group = group
+                    found = True
+                    break
+            if not found:
+                # group not found, create new object
+                selected_group = Group(name)
+                current_groups.append(selected_group)
+                current_groups = selected_group.groups
+        selected_group.add_id(element_id)
 
     # ----------------------
     # REST-API to get the data

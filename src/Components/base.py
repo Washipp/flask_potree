@@ -95,16 +95,16 @@ class Group:
 
     def __init__(self, name: str) -> None:
         super().__init__()
-        self.group_id = self._increment()
+        self.group_id = self._get_next_id()
         self.name = name
         self.ids = []
         self.groups = []
         self.visible = True
 
-    def add_id(self, component_id: int):
-        self.ids.append(component_id)
+    def add_id(self, element_id: int) -> None:
+        self.ids.append(element_id)
 
-    def add_group(self, group):
+    def add_group(self, group) -> None:
         self.groups.append(group)
 
     def _get_next_id(self) -> int:
