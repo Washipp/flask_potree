@@ -1,0 +1,6 @@
+flask
+Flask-SocketIO
+pycolmap
+open3d
+numpy
+plyfile
