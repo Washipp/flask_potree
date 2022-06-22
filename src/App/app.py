@@ -1,11 +1,17 @@
+import time
+from copy import deepcopy
+from typing import Callable, Any, Iterable, Mapping
+
 from flask_socketio import SocketIO, emit
-from flask import Flask
+from flask import Flask, copy_current_request_context
 import flask
 import json
 import secrets
+import threading
 
 from src.Components.base import Row, Viewer, Camera, ElementTree, Col, SceneSettings, Group
-from src.SceneElements.elements import PotreePointCloud, DefaultPointCloud, LineSet, CameraTrajectory, BaseSceneElement
+from src.SceneElements.elements import PotreePointCloud, DefaultPointCloud, LineSet, CameraTrajectory, \
+    BaseSceneElement, ColmapReconstruction, SceneElementType
 
 
 # Allow all accesses by default.
@@ -18,10 +24,18 @@ def set_cors_headers(response: flask.Response):
 
 class Tarasp:
     app = Flask(__name__)
-    socketio = SocketIO(app, logger=True, engineio_logger=True, cors_allowed_origins='*')
+    socketio = SocketIO(app, logger=True, engineio_logger=True, cors_allowed_origins='*', async_mode=None)
 
     COMPONENT_TREE = []
-    CURRENT_CAMERA_STATE = {}
+
+    # TODO: remove this inital state.
+    CURRENT_CAMERA_STATE = {
+        0:
+        {'position': {'x': 90.00531297517658, 'y': 96.62735985109403, 'z': 112.08120700834593},
+                            'rotation': {'_x': -0.7114879396027812, '_y': 0.5464364662891037, '_z': 0.42118674763556463,
+                                         '_order': 'XYZ'}, 'fov': 60, 'near': 0.1, 'far': 100000,
+                            'lastUpdate': 1655898143578}
+    }
 
     BASE_URL = 'http://127.0.0.1'
     PORT = 5000
@@ -46,7 +60,7 @@ class Tarasp:
         self.create_component_tree()
 
         # 3. Run the application. Open browser by default?
-        print(json.dumps(self.COMPONENT_TREE[0], indent=2))
+        # print(json.dumps(self.COMPONENT_TREE[0], indent=2))
         self.socketio.run(self.app, port=self.PORT)
 
     # Adds the scene elements to the default group
@@ -62,7 +76,7 @@ class Tarasp:
         self.add_element(pc2)
         print("Added PotreePointCloud 2")
 
-        pc3 = DefaultPointCloud(name="Fragment")
+        pc3 = DefaultPointCloud('', name="Fragment")
         self.add_element(pc3)
         print("Added Default PC")
 
@@ -83,6 +97,9 @@ class Tarasp:
             self.add_line_set(element)
         elif isinstance(element, CameraTrajectory):
             self.add_camera_trajectory(element)
+        elif isinstance(element, ColmapReconstruction):
+            # TODO add the elements of the reconstruction
+            pass
         else:
             raise Exception("Trying to add unknown element: " + str(type(element)))
 
@@ -90,8 +107,7 @@ class Tarasp:
         if isinstance(pc, DefaultPointCloud):
             self._POINT_CLOUDS.append(pc)
         elif isinstance(pc, str):
-            point_cloud = DefaultPointCloud(name=name)
-            point_cloud.set_source(pc)
+            point_cloud = DefaultPointCloud(data=pc, name=name)
             self._POINT_CLOUDS.append(point_cloud)
 
         # TODO: what other ways could pc be? add them
@@ -109,9 +125,6 @@ class Tarasp:
 
     def add_camera_trajectory(self, ct):
         self._CAMERA_TRAJECTORIES.append(ct)
-
-    def add_group(self, group):
-        self._GROUPS.append(group)
 
     def convert_scene_elements(self):
         for pc in self._POINT_CLOUDS:
@@ -178,6 +191,7 @@ class Tarasp:
     def update_groups(self, element: BaseSceneElement):
         group_names = element.group
         element_id = element.element_id
+        selected_group = Group("Unknown")
         current_groups = self._GROUPS
         for name in group_names:
             found = False
@@ -220,23 +234,53 @@ class Tarasp:
 
     # Get the defined component-tree
     @staticmethod
-    @app.route('/component_tree/<path:tree_id>')
-    def get_component_tree(tree_id):
-        tree_id = int(tree_id)
-        if len(Tarasp.COMPONENT_TREE) < tree_id:
+    @app.route('/component_tree/<path:scene_id>')
+    def get_component_tree(scene_id):
+        scene_id = int(scene_id)
+        if len(Tarasp.COMPONENT_TREE) < scene_id:
             response = flask.make_response("[Server]: Error: No component tree found with the provided ID")
             response.status_code = 404
             return set_cors_headers(response)
         else:
-            response = flask.make_response(flask.jsonify(Tarasp.COMPONENT_TREE[tree_id]))
+            response = flask.make_response(flask.jsonify(Tarasp.COMPONENT_TREE[scene_id]))
             response.status_code = 200
             return set_cors_headers(response)
 
+
     # SocketIO
 
+    ANIMATION = {}
+
+    thread = None
+    thread_lock = threading.Lock()
+
     @staticmethod
-    @socketio.on('json')
-    def test_message(message):
+    @socketio.on('start_animation')
+    def start_animation(scene_id):
+        scene_id = int(scene_id)
+        print("[Server]: Starting animation for sceneId " + str(scene_id))
+
+        # TODO: replace with actual camera states that correspond to the animation.
+        state = deepcopy(Tarasp.CURRENT_CAMERA_STATE[scene_id])
+
+        def send_animation_update():
+            count = 1
+            for i in range(15):
+                state["position"]["x"] -= count
+                state["position"]["y"] -= count / 2
+                Tarasp.socketio.emit('camera_sync', state, broadcast=False)  # only send to originating user
+                Tarasp.socketio.sleep(0.08)
+                count += 5
+            with Tarasp.thread_lock:
+                Tarasp.thread = None
+
+        with Tarasp.thread_lock:
+            if Tarasp.thread is None:
+                Tarasp.thread = Tarasp.socketio.start_background_task(target=send_animation_update)
+
+    @staticmethod
+    @socketio.on('camera_sync')
+    def sync_camera_state(message):
         data = json.loads(message)
         scene_id = data['sceneId']
         state = data['state']
@@ -247,11 +291,11 @@ class Tarasp:
 
             if last_update + 30 < state['lastUpdate']:
                 Tarasp.CURRENT_CAMERA_STATE[scene_id] = state
-                emit('json', state, broadcast=True, include_self=False)
+                Tarasp.socketio.emit('camera_sync', state, broadcast=True, include_self=False)
 
     @staticmethod
     @socketio.on('connect')
-    def test_connect():
+    def connect():
         print('Client connected')
 
     @staticmethod

@@ -1,9 +1,15 @@
+import os
 import subprocess
 from abc import ABC, abstractmethod
 from enum import Enum
 from os.path import exists
 from sys import platform
 from typing import Union, List
+from pathlib import Path
+
+import pycolmap
+
+from src.colmap_manager import pcd_from_colmap, write_pointcloud_o3d
 
 
 def ply_to_potree(ply_location: str, overwrite=False) -> str:
@@ -31,7 +37,7 @@ def ply_to_potree(ply_location: str, overwrite=False) -> str:
     elif not exists(target + '/cloud.js'):
         subprocess.run(full_command, shell=True)
     else:
-        print('PointCloud already found, no conversion needed')
+        print('[Info]: PointCloud already found, no conversion needed')
 
     return target
 
@@ -94,6 +100,11 @@ class SceneElementType(Enum):
     LINE_SET = 'line_set'
 
 
+class PointCloudType(Enum):
+    POTREE = 'potree'
+    DEFAULT = 'default'
+
+
 class PotreePointCloud(BaseSceneElement):
     key_material = 'material'
     key_size = 'size'
@@ -123,7 +134,7 @@ class PotreePointCloud(BaseSceneElement):
         # 2. Check if this point-cloud has been transformed before
         # url = './data/fragment.ply'
         # 3. Start new thread to convert it into Potree format if its new
-        path = self.BASE_URL + ':' + str(self.PORT) + ply_to_potree(url)[1:] + '/'
+        path = f"{self.BASE_URL}:{str(self.PORT)}{ply_to_potree(url)[1:]}/"
         # 4. Add data-path to source
         path = 'http://127.0.0.1:5000/data/mesh_simplified_converted/'
         self.set_source(path)
@@ -139,9 +150,10 @@ class PotreePointCloud(BaseSceneElement):
 
 class DefaultPointCloud(BaseSceneElement):
 
-    def __init__(self, name="Point Cloud", group: Union[str, List[str]] = "Default Point Clouds") -> None:
+    def __init__(self, data, name="Point Cloud", group: Union[str, List[str]] = "Default Point Clouds") -> None:
         super().__init__(name, group)
         self.source = ''
+        self.data = data
         self.type = SceneElementType.DEFAULT_PC
 
     def set_source(self, url: str):
@@ -193,11 +205,13 @@ class CameraTrajectory(BaseSceneElement):
     key_rotation = 'r'
     key_image_url = 'imageUrl'
 
-    def __init__(self, image_url: str, name: str = "Camera Trajectory",
-                 group: Union[str, List[str]] = "Camera Trajectories") -> None:
+    def __init__(self, image_url: Union[Path, str], name: str = "Camera Trajectory",
+                 group: Union[str, List[str]] = "Default") -> None:
         super().__init__(name, group)
         self.source = {}
-        self.set_image(self.BASE_URL+':'+str(self.PORT)+'/'+image_url)
+        if type(image_url) is str:
+            image_url = Path(image_url)
+        self.set_image(f"{self.BASE_URL}:{str(self.PORT)}/{image_url}")
         self.type = SceneElementType.CAMERA_TRAJECTORY
 
     def set_source(self, source: ([int], [int])):
@@ -220,3 +234,35 @@ class CameraTrajectory(BaseSceneElement):
             self.key_source: self.source,
             self.key_attributes: self.attributes
         }
+
+
+class ColmapReconstruction(BaseSceneElement):
+    DEFAULT_PATH = './data/colmap/'
+
+    def __init__(self, path: Path, name: str = "Colmap Reconstruction",
+                 group: Union[str, List[str]] = "Default",
+                 point_cloud_type: PointCloudType = PointCloudType.POTREE) -> None:
+        super().__init__(name, group)
+
+        # create internal objects.
+        rec = pycolmap.Reconstruction(path)
+
+        # point cloud
+        pcd = pcd_from_colmap(rec)
+        saved_path = Path(f"{self.DEFAULT_PATH}/{path.name}")
+        write_pointcloud_o3d(saved_path, pcd)
+        if point_cloud_type == PointCloudType.POTREE:
+            self.pc = PotreePointCloud(saved_path, name, group)
+        else:
+            self.pc = DefaultPointCloud(saved_path, name, group)
+
+        # camera frustums
+
+    def set_source(self, source):
+        pass
+
+    def convert_to_source(self):
+        pass
+
+    def to_json(self):
+        pass
