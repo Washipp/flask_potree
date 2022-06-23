@@ -1,9 +1,8 @@
-import time
 from copy import deepcopy
-from typing import Callable, Any, Iterable, Mapping
+from typing import List
 
-from flask_socketio import SocketIO, emit
-from flask import Flask, copy_current_request_context
+from flask_socketio import SocketIO
+from flask import Flask
 import flask
 import json
 import secrets
@@ -11,7 +10,7 @@ import threading
 
 from src.Components.base import Row, Viewer, Camera, ElementTree, Col, SceneSettings, Group
 from src.SceneElements.elements import PotreePointCloud, DefaultPointCloud, LineSet, CameraTrajectory, \
-    BaseSceneElement, ColmapReconstruction, SceneElementType
+    BaseSceneElement, SceneElementType
 
 
 # Allow all accesses by default.
@@ -27,30 +26,28 @@ class Tarasp:
     socketio = SocketIO(app, logger=True, engineio_logger=True, cors_allowed_origins='*', async_mode=None)
 
     COMPONENT_TREE = []
-
     # TODO: remove this inital state.
     CURRENT_CAMERA_STATE = {
         0:
-        {'position': {'x': 90.00531297517658, 'y': 96.62735985109403, 'z': 112.08120700834593},
-                            'rotation': {'_x': -0.7114879396027812, '_y': 0.5464364662891037, '_z': 0.42118674763556463,
-                                         '_order': 'XYZ'}, 'fov': 60, 'near': 0.1, 'far': 100000,
-                            'lastUpdate': 1655898143578}
+            {'position': {'x': 90.00531297517658, 'y': 96.62735985109403, 'z': 112.08120700834593},
+             'rotation': {'_x': -0.7114879396027812, '_y': 0.5464364662891037, '_z': 0.42118674763556463,
+                          '_order': 'XYZ'}, 'fov': 60, 'near': 0.1, 'far': 100000,
+             'lastUpdate': 1655898143578}
     }
 
     BASE_URL = 'http://127.0.0.1'
     PORT = 5000
 
-    _POTREE_POINT_CLOUDS: [PotreePointCloud] = []
-    _POINT_CLOUDS: [DefaultPointCloud] = []
-    _LINE_SETS: [LineSet] = []
-    _CAMERA_TRAJECTORIES: [CameraTrajectory] = []
-
-    _GROUPS: [Group] = []
-
-    def __init__(self, port: int):
+    def __init__(self, port: int = 5000):
         self.PORT = port
         BaseSceneElement.PORT = port
         self.app.config['SECRET_KEY'] = secrets.token_hex(16)
+
+        self._POINT_CLOUDS: [PotreePointCloud] = []
+        self._POTREE_POINT_CLOUDS: [DefaultPointCloud] = []
+        self._LINE_SETS: [LineSet] = []
+        self._CAMERA_TRAJECTORIES: [CameraTrajectory] = []
+        self._GROUPS: [Group] = []
 
     def run(self):
         # 1. Convert SceneElements to source (url, r/t, array of tuples of int arrays)
@@ -61,6 +58,7 @@ class Tarasp:
 
         # 3. Run the application. Open browser by default?
         # print(json.dumps(self.COMPONENT_TREE[0], indent=2))
+        print("[Server]: Starting server at " + self.BASE_URL + ":" + str(self.PORT))
         self.socketio.run(self.app, port=self.PORT)
 
     # Adds the scene elements to the default group
@@ -80,11 +78,11 @@ class Tarasp:
         self.add_element(pc3)
         print("Added Default PC")
 
-        ls = LineSet(name='Line Set')
+        ls = LineSet(data='', name='Line Set')
         self.add_element(ls)
         print("Added LineSet")
 
-        ct = CameraTrajectory(image_url='image/url', name='Camera Trajectory')
+        ct = CameraTrajectory(data='', image_url='image/url', name='Camera Trajectory')
         self.add_element(ct)
         print("Added CameraTrajectory")
 
@@ -149,19 +147,23 @@ class Tarasp:
             viewer.set_scene_id(scene_id)
             for pc in self._POINT_CLOUDS:
                 viewer.add_element(pc)
-                self.update_groups(pc)
+            self.update_groups(self._POINT_CLOUDS)
 
             for ppc in self._POTREE_POINT_CLOUDS:
                 viewer.add_element(ppc)
-                self.update_groups(ppc)
+            self.update_groups(self._POTREE_POINT_CLOUDS)
 
             for ls in self._LINE_SETS:
                 viewer.add_element(ls)
-                self.update_groups(ls)
+            self.update_groups(self._LINE_SETS)
 
             for ct in self._CAMERA_TRAJECTORIES:
                 viewer.add_element(ct)
-                self.update_groups(ct)
+            self.update_groups(self._CAMERA_TRAJECTORIES)
+
+            # The front-end uses (so far) an array to store the elements which are accessed via element_id
+            # To not mix up objects and references, we sort them here
+            viewer.elements.sort(key=lambda x: x.element_id, reverse=False)
 
             element_tree = ElementTree()
             for group in self._GROUPS:
@@ -188,25 +190,26 @@ class Tarasp:
         else:
             self.COMPONENT_TREE.append([tree])
 
-    def update_groups(self, element: BaseSceneElement):
-        group_names = element.group
-        element_id = element.element_id
-        selected_group = Group("Unknown")
-        current_groups = self._GROUPS
-        for name in group_names:
-            found = False
-            for group in current_groups:
-                if group.name == name:  # found, group already exists
-                    current_groups = group.groups
-                    selected_group = group
-                    found = True
-                    break
-            if not found:
-                # group not found, create new object
-                selected_group = Group(name)
-                current_groups.append(selected_group)
-                current_groups = selected_group.groups
-        selected_group.add_id(element_id)
+    def update_groups(self, elements: List[BaseSceneElement]):
+        for element in elements:
+            group_names = element.group
+            element_id = element.element_id
+            selected_group = Group("Unknown")
+            current_groups = self._GROUPS
+            for name in group_names:
+                found = False
+                for group in current_groups:
+                    if group.name == name:  # found, group already exists
+                        current_groups = group.groups
+                        selected_group = group
+                        found = True
+                        break
+                if not found:
+                    # group not found, create new object
+                    selected_group = Group(name)
+                    current_groups.append(selected_group)
+                    current_groups = selected_group.groups
+            selected_group.add_id(element_id)
 
     # ----------------------
     # REST-API to get the data
@@ -245,7 +248,6 @@ class Tarasp:
             response = flask.make_response(flask.jsonify(Tarasp.COMPONENT_TREE[scene_id]))
             response.status_code = 200
             return set_cors_headers(response)
-
 
     # SocketIO
 

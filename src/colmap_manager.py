@@ -52,7 +52,7 @@ def construct_cameras(rec: Reconstruction, name: str, scale: float):
 
 
 def write_pointcloud_o3d(path: Path, pcd: o3d.geometry.PointCloud,
-                         write_normals: bool = True, xyz_dtype: str = 'float32'):
+                         write_normals: bool = True, xyz_dtype: str = 'float32') -> Path:
     """Currently o3d.t.io.write_point_cloud writes non-standard types but #4553 should fixe it."""
     # pcd_t = o3d.t.geometry.PointCloud(o3d.core.Tensor(np.asarray(pcd.points)))
     # if pcd.has_normals():
@@ -75,6 +75,7 @@ def write_pointcloud_o3d(path: Path, pcd: o3d.geometry.PointCloud,
         data['red'], data['green'], data['blue'] = colors.T
     with open(str(path), mode='wb') as f:
         plyfile.PlyData([plyfile.PlyElement.describe(data, 'vertex')]).write(f)
+    return path
 
 
 def write_pointcloud_np(path: Path, points: np.ndarray):

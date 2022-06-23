@@ -1,4 +1,3 @@
-import os
 import subprocess
 from abc import ABC, abstractmethod
 from enum import Enum
@@ -6,10 +5,9 @@ from os.path import exists
 from sys import platform
 from typing import Union, List
 from pathlib import Path
+import open3d as o3d
 
-import pycolmap
-
-from src.colmap_manager import pcd_from_colmap, write_pointcloud_o3d
+from src.colmap_manager import write_pointcloud_o3d
 
 
 def ply_to_potree(ply_location: str, overwrite=False) -> str:
@@ -27,6 +25,7 @@ def ply_to_potree(ply_location: str, overwrite=False) -> str:
         full_command = base_command + ' ' + ply_location + ' -o ' + target
     elif platform == "darwin":
         # OS X
+        # TODO add support for MacOS and Windows.
         full_command = ''
     elif platform == "win32":
         # Windows...
@@ -59,14 +58,17 @@ class BaseSceneElement(ABC):
     key_source = 'source'
     key_attributes = 'attributes'
 
+    DEFAULT_DATA_PATH = './data/'
+
     BASE_URL = 'http://127.0.0.1'
     PORT = 5000
 
     _increment: Incrementer = Incrementer()
 
-    def __init__(self, name: str, group: Union[str, List[str]] = "Default") -> None:
+    def __init__(self, data, name: str, group: Union[str, List[str]] = "Default") -> None:
         super().__init__()
         self.attributes = {}
+        self.data = data
         self.element_id = self._get_next_id()
         self.attributes[self.key_name] = name
         if isinstance(group, str):
@@ -109,9 +111,8 @@ class PotreePointCloud(BaseSceneElement):
     key_material = 'material'
     key_size = 'size'
 
-    def __init__(self, data, name: str = "PotreePointCloud",
-                 group: Union[str, List[str]] = "Potree Point Clouds") -> None:
-        super().__init__(name, group)
+    def __init__(self, data, name: str = "PotreePointCloud", group: Union[str, List[str]] = "Default") -> None:
+        super().__init__(data, name, group)
         self.source = ''
         self.data = data
         self.type = SceneElementType.POTREE_PC
@@ -134,9 +135,10 @@ class PotreePointCloud(BaseSceneElement):
         # 2. Check if this point-cloud has been transformed before
         # url = './data/fragment.ply'
         # 3. Start new thread to convert it into Potree format if its new
-        path = f"{self.BASE_URL}:{str(self.PORT)}{ply_to_potree(url)[1:]}/"
+        out_dir = ply_to_potree(url)
+        path = f"{self.BASE_URL}:{str(self.PORT)}{out_dir[1:]}/"
         # 4. Add data-path to source
-        path = 'http://127.0.0.1:5000/data/mesh_simplified_converted/'
+        # path = 'http://127.0.0.1:5000/data/mesh_simplified_converted/'
         self.set_source(path)
 
     def to_json(self):
@@ -150,8 +152,8 @@ class PotreePointCloud(BaseSceneElement):
 
 class DefaultPointCloud(BaseSceneElement):
 
-    def __init__(self, data, name="Point Cloud", group: Union[str, List[str]] = "Default Point Clouds") -> None:
-        super().__init__(name, group)
+    def __init__(self, data, name="Point Cloud", group: Union[str, List[str]] = "Default") -> None:
+        super().__init__(data, name, group)
         self.source = ''
         self.data = data
         self.type = SceneElementType.DEFAULT_PC
@@ -163,8 +165,18 @@ class DefaultPointCloud(BaseSceneElement):
         # TODO
         # 1. Bring 'data' into .ply form
         # 2. Save pc or if this point-cloud has been saved before read url
+        if type(self.data) is str:
+            if exists(self.data):
+                self.set_source(self.data)
+            else:
+                raise Exception(
+                    "Trying to convert data to DefaultPointCloud. Got string but is not a path: " + self.data)
+        elif type(self.data) is o3d.geometry.PointCloud:
+            saved_path = Path(f"{self.DEFAULT_DATA_PATH}/point-clouds/{self.data.name}")
+            write_pointcloud_o3d(saved_path, self.data)
+            # TODO paths could depend on the OS. Need to test and verify
+            self.set_source(saved_path.as_posix())
         # 3. Add data-path to source
-        self.set_source('path/to/source/default_pc')
 
     def to_json(self):
         return {
@@ -177,8 +189,8 @@ class DefaultPointCloud(BaseSceneElement):
 
 class LineSet(BaseSceneElement):
 
-    def __init__(self, name="Line Set", group: Union[str, List[str]] = "Line Sets") -> None:
-        super().__init__(name, group)
+    def __init__(self, data, name="Line Set", group: Union[str, List[str]] = "Default") -> None:
+        super().__init__(data, name, group)
         self.source = []
         self.type = SceneElementType.LINE_SET
 
@@ -189,7 +201,7 @@ class LineSet(BaseSceneElement):
         # TODO
         # 1. Bring 'data' into 'Array of int-tuple arrays' form
         # 2. Call add source
-        self.set_source([[(-10, -5, 0), (-10, 5, 0)]])
+        self.set_source(self.data)
 
     def to_json(self):
         return {
@@ -205,9 +217,9 @@ class CameraTrajectory(BaseSceneElement):
     key_rotation = 'r'
     key_image_url = 'imageUrl'
 
-    def __init__(self, image_url: Union[Path, str], name: str = "Camera Trajectory",
+    def __init__(self, data, image_url: Union[Path, str], name: str = "Camera Trajectory",
                  group: Union[str, List[str]] = "Default") -> None:
-        super().__init__(name, group)
+        super().__init__(data, name, group)
         self.source = {}
         if type(image_url) is str:
             image_url = Path(image_url)
@@ -225,7 +237,7 @@ class CameraTrajectory(BaseSceneElement):
         # TODO
         # 1. Bring 'data' into translation-vector and rotation-quaternion form
         # 2. Call set source
-        self.set_source(([5, 5, 5], [2, 2, 2, 0]))
+        self.set_source(self.data)
 
     def to_json(self):
         return {
@@ -234,35 +246,3 @@ class CameraTrajectory(BaseSceneElement):
             self.key_source: self.source,
             self.key_attributes: self.attributes
         }
-
-
-class ColmapReconstruction(BaseSceneElement):
-    DEFAULT_PATH = './data/colmap/'
-
-    def __init__(self, path: Path, name: str = "Colmap Reconstruction",
-                 group: Union[str, List[str]] = "Default",
-                 point_cloud_type: PointCloudType = PointCloudType.POTREE) -> None:
-        super().__init__(name, group)
-
-        # create internal objects.
-        rec = pycolmap.Reconstruction(path)
-
-        # point cloud
-        pcd = pcd_from_colmap(rec)
-        saved_path = Path(f"{self.DEFAULT_PATH}/{path.name}")
-        write_pointcloud_o3d(saved_path, pcd)
-        if point_cloud_type == PointCloudType.POTREE:
-            self.pc = PotreePointCloud(saved_path, name, group)
-        else:
-            self.pc = DefaultPointCloud(saved_path, name, group)
-
-        # camera frustums
-
-    def set_source(self, source):
-        pass
-
-    def convert_to_source(self):
-        pass
-
-    def to_json(self):
-        pass
