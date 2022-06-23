@@ -54,12 +54,6 @@ def construct_cameras(rec: Reconstruction, name: str, scale: float):
 def write_pointcloud_o3d(path: Path, pcd: o3d.geometry.PointCloud,
                          write_normals: bool = True, xyz_dtype: str = 'float32') -> Path:
     """Currently o3d.t.io.write_point_cloud writes non-standard types but #4553 should fixe it."""
-    # pcd_t = o3d.t.geometry.PointCloud(o3d.core.Tensor(np.asarray(pcd.points)))
-    # if pcd.has_normals():
-        # pcd_t.point["normals"] = o3d.core.Tensor(np.asarray(pcd.normals))
-    # if pcd.has_colors():
-        # pcd_t.point["colors"] = o3d.core.Tensor(np.asarray(pcd.colors), dtype=o3d.core.Dtype.UInt8)
-    # o3d.t.io.write_point_cloud(str(path), pcd_t)
     write_normals = write_normals and pcd.has_normals()
     dtypes = [('x', xyz_dtype), ('y', xyz_dtype), ('z', xyz_dtype)]
     if write_normals:
@@ -73,7 +67,7 @@ def write_pointcloud_o3d(path: Path, pcd: o3d.geometry.PointCloud,
     if pcd.has_colors():
         colors = (np.asarray(pcd.colors)*255).astype(np.uint8)
         data['red'], data['green'], data['blue'] = colors.T
-    with open(str(path), mode='wb') as f:
+    with open(str(path), mode='w+b') as f:
         plyfile.PlyData([plyfile.PlyElement.describe(data, 'vertex')]).write(f)
     return path
 
