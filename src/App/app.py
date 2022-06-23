@@ -10,7 +10,7 @@ import threading
 
 from src.Components.base import Row, Viewer, Camera, ElementTree, Col, SceneSettings, Group
 from src.SceneElements.elements import PotreePointCloud, DefaultPointCloud, LineSet, CameraTrajectory, \
-    BaseSceneElement, SceneElementType
+    BaseSceneElement
 
 
 # Allow all accesses by default.
@@ -23,25 +23,21 @@ def set_cors_headers(response: flask.Response):
 
 class Tarasp:
     app = Flask(__name__)
-    socketio = SocketIO(app, logger=True, engineio_logger=True, cors_allowed_origins='*', async_mode=None)
+    socketio = SocketIO(app, logger=True, engineio_logger=True, cors_allowed_origins='*')
 
     COMPONENT_TREE = []
-    # TODO: remove this inital state.
-    CURRENT_CAMERA_STATE = {
-        0:
-            {'position': {'x': 90.00531297517658, 'y': 96.62735985109403, 'z': 112.08120700834593},
-             'rotation': {'_x': -0.7114879396027812, '_y': 0.5464364662891037, '_z': 0.42118674763556463,
-                          '_order': 'XYZ'}, 'fov': 60, 'near': 0.1, 'far': 100000,
-             'lastUpdate': 1655898143578}
-    }
+
+    CURRENT_CAMERA_STATE = {}
 
     BASE_URL = 'http://127.0.0.1'
     PORT = 5000
 
-    def __init__(self, port: int = 5000):
+    def __init__(self, port: int = 5000,  print_component_tree=False):
         self.PORT = port
         BaseSceneElement.PORT = port
         self.app.config['SECRET_KEY'] = secrets.token_hex(16)
+
+        self.print_component_tree = print_component_tree
 
         self._POINT_CLOUDS: [PotreePointCloud] = []
         self._POTREE_POINT_CLOUDS: [DefaultPointCloud] = []
@@ -57,34 +53,10 @@ class Tarasp:
         self.create_component_tree()
 
         # 3. Run the application. Open browser by default?
-        # print(json.dumps(self.COMPONENT_TREE[0], indent=2))
+        if self.print_component_tree:
+            print(json.dumps(self.COMPONENT_TREE[0], indent=2))
         print("[Server]: Starting server at " + self.BASE_URL + ":" + str(self.PORT))
         self.socketio.run(self.app, port=self.PORT)
-
-    # Adds the scene elements to the default group
-
-    def load_example_elements(self):
-        print('Loading example elements.')
-        # Elements
-        pc1 = PotreePointCloud('', name="ETH-CAB")
-        self.add_element(pc1)
-        print("Added PotreePointCloud 1")
-
-        pc2 = PotreePointCloud('', name="Lion")
-        self.add_element(pc2)
-        print("Added PotreePointCloud 2")
-
-        pc3 = DefaultPointCloud('', name="Fragment")
-        self.add_element(pc3)
-        print("Added Default PC")
-
-        ls = LineSet(data='', name='Line Set')
-        self.add_element(ls)
-        print("Added LineSet")
-
-        ct = CameraTrajectory(data='', image_url='image/url', name='Camera Trajectory')
-        self.add_element(ct)
-        print("Added CameraTrajectory")
 
     def add_element(self, element: BaseSceneElement):
         if isinstance(element, PotreePointCloud):
@@ -95,9 +67,6 @@ class Tarasp:
             self.add_line_set(element)
         elif isinstance(element, CameraTrajectory):
             self.add_camera_trajectory(element)
-        elif isinstance(element, ColmapReconstruction):
-            # TODO add the elements of the reconstruction
-            pass
         else:
             raise Exception("Trying to add unknown element: " + str(type(element)))
 
@@ -142,9 +111,7 @@ class Tarasp:
         if tree is None:  # Create a default tree, left side is a sidebar, right side is the scene
             scene_id = 0
 
-            viewer = Viewer()
-            viewer.set_camera(Camera())
-            viewer.set_scene_id(scene_id)
+            viewer = Viewer(scene_id)
             for pc in self._POINT_CLOUDS:
                 viewer.add_element(pc)
             self.update_groups(self._POINT_CLOUDS)
@@ -253,26 +220,37 @@ class Tarasp:
 
     ANIMATION = {}
 
+    def add_animation(self, animation_name: str, camera: Camera):
+        if animation_name not in self.ANIMATION.keys():
+            self.ANIMATION[animation_name] = []
+        self.ANIMATION[animation_name].append(camera)
+
     thread = None
     thread_lock = threading.Lock()
 
     @staticmethod
     @socketio.on('start_animation')
-    def start_animation(scene_id):
-        scene_id = int(scene_id)
+    def start_animation(data):
+        data = json.loads(data)
+        animation_name = data['animationName']
+        scene_id = int(data['sceneId'])
+
+        if animation_name not in Tarasp.ANIMATION.keys():
+            print("[Server]: Error, no animation found with name " + animation_name)
+            return
+
         print("[Server]: Starting animation for sceneId " + str(scene_id))
 
         # TODO: replace with actual camera states that correspond to the animation.
         state = deepcopy(Tarasp.CURRENT_CAMERA_STATE[scene_id])
 
         def send_animation_update():
-            count = 1
-            for i in range(15):
-                state["position"]["x"] -= count
-                state["position"]["y"] -= count / 2
-                Tarasp.socketio.emit('camera_sync', state, broadcast=False)  # only send to originating user
+            print("#####")
+            print(state)
+            for cam in Tarasp.ANIMATION[animation_name]:
+                print(cam.to_json)
+                Tarasp.socketio.emit('camera_sync', cam.to_json(), broadcast=False)  # only send to originating user
                 Tarasp.socketio.sleep(0.08)
-                count += 5
             with Tarasp.thread_lock:
                 Tarasp.thread = None
 
