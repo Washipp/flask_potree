@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from enum import Enum
+from typing import List
 
 from src.SceneElements.elements import BaseSceneElement, Incrementer
 
@@ -187,13 +188,13 @@ class Camera:
     key_near = 'near'
     key_far = 'far'
 
-    def __init__(self) -> None:
+    def __init__(self, position: List, rotation: List, fov=60, near=0.1, far=100000) -> None:
         super().__init__()
-        self.position = [100, 100, 100]
-        self.rotation = [0.5, 0.5, 0.5]
-        self.fov = 60
-        self.near = 0.1
-        self.far = 100000
+        self.position = position
+        self.rotation = rotation
+        self.fov = fov
+        self.near = near
+        self.far = far
 
     def to_json(self) -> dict:
         return {
@@ -210,12 +211,12 @@ class Viewer(BaseComponent):
     key_camera = 'camera'
     key_elements = 'elements'
 
-    def __init__(self) -> None:
+    def __init__(self, scene_id: int = -1) -> None:
         super().__init__()
         self.data[self.key_elements] = []
-        self.data[self.key_scene_id] = 0  # default scene_id
+        self.data[self.key_scene_id] = scene_id  # default scene_id
         self.component = ComponentType.VIEWER
-        self.camera = Camera()
+        self.camera = Camera([100, 100, 100], [0.5, 0.5, 0.5])
         self.elements = []
 
     def add_element(self, element: BaseSceneElement):

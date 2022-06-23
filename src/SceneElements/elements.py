@@ -4,13 +4,16 @@ from enum import Enum
 from os.path import exists
 from sys import platform
 from typing import Union, List
-from pathlib import Path
+from pathlib import Path, PosixPath
+
+import numpy as np
 import open3d as o3d
 
 from src.colmap_manager import write_pointcloud_o3d
 
 
 def ply_to_potree(ply_location: str, overwrite=False) -> str:
+    print("[Info]: Converting point-cloud to potree format.")
     base_converted_directory = './data/converted/'
     # TODO: check the OS and then execute the command.
 
@@ -116,8 +119,6 @@ class PotreePointCloud(BaseSceneElement):
         self.source = ''
         self.data = data
         self.type = SceneElementType.POTREE_PC
-        self.material = {self.key_size: 2}
-        self.attributes[self.key_material] = self.material
 
     def set_source(self, url: str):
         self.source = url
@@ -125,18 +126,22 @@ class PotreePointCloud(BaseSceneElement):
     def convert_to_source(self):
         # TODO What other type of data to support? Library?
         # 1. Bring 'data' into .ply form
-
-        if type(self.data) is str and exists(self.data):
-            url = self.data
+        if type(self.data) is str:
+            if exists(self.data):
+                url = self.data
+            else:
+                raise Exception(f"Data not found {self.data}")
+        elif type(self.data) is Path or type(self.data) is PosixPath:
+            url = self.data.as_posix()
         else:
-            self.set_source(self.data)
-            url = ''
-            return  # return as default since it fails
+            raise Exception(f"Trying to convert {type(self.data)} to str")
         # 2. Check if this point-cloud has been transformed before
         # url = './data/fragment.ply'
+
         # 3. Start new thread to convert it into Potree format if its new
         out_dir = ply_to_potree(url)
         path = f"{self.BASE_URL}:{str(self.PORT)}{out_dir[1:]}/"
+
         # 4. Add data-path to source
         # path = 'http://127.0.0.1:5000/data/mesh_simplified_converted/'
         self.set_source(path)
@@ -198,7 +203,7 @@ class LineSet(BaseSceneElement):
         self.source = lines
 
     def convert_to_source(self):
-        # TODO
+        # TODO I'm assuming the data is correct.
         # 1. Bring 'data' into 'Array of int-tuple arrays' form
         # 2. Call add source
         self.set_source(self.data)
@@ -222,7 +227,7 @@ class CameraTrajectory(BaseSceneElement):
         super().__init__(data, name, group)
         self.source = {}
         if type(image_url) is str:
-            image_url = Path(image_url)
+            image_url = Path(image_url).as_posix()
         self.set_image(f"{self.BASE_URL}:{str(self.PORT)}/{image_url}")
         self.type = SceneElementType.CAMERA_TRAJECTORY
 
@@ -236,6 +241,8 @@ class CameraTrajectory(BaseSceneElement):
     def convert_to_source(self):
         # TODO
         # 1. Bring 'data' into translation-vector and rotation-quaternion form
+        if type(self.data) is tuple:
+            self.data = (self.data[0].tolist(), self.data[1].tolist())
         # 2. Call set source
         self.set_source(self.data)
 
