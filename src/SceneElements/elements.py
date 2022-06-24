@@ -14,6 +14,9 @@ from src.colmap_manager import write_pointcloud_o3d
 def ply_to_potree(ply_location: str, overwrite=False) -> str:
     print("[Info]: Converting point-cloud to potree format.")
     base_converted_directory = './data/converted/'
+
+    if not exists(base_converted_directory):
+        Path(base_converted_directory).mkdir(parents=True)
     # TODO: check the OS and then execute the command.
 
     name = ply_location.split('/')[-1]
