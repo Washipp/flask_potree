@@ -6,7 +6,6 @@ from sys import platform
 from typing import Union, List
 from pathlib import Path, PosixPath
 
-import numpy as np
 import open3d as o3d
 
 from src.colmap_manager import write_pointcloud_o3d

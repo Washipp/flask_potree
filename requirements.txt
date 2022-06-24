@@ -3,4 +3,5 @@ Flask-SocketIO
 pycolmap
 open3d
 numpy
+eventlet
 plyfile
