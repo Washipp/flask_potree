@@ -185,13 +185,13 @@ class Tarasp:
     @staticmethod
     @app.route('/')
     def func():
-        response = flask.send_from_directory(directory='../../front-end/ts-potree/', path='index.html')
+        response = flask.send_from_directory(directory='../../front-end/', path='index.html')
         return set_cors_headers(response)
 
     @staticmethod
     @app.route('/<path:file_name>')
     def serve_front_end(file_name):
-        response = flask.send_from_directory(directory='../../front-end/ts-potree/', path=file_name)
+        response = flask.send_from_directory(directory='../../front-end/', path=file_name)
         return set_cors_headers(response)
 
     # Handle all data calls by returning it as octet-stream.
