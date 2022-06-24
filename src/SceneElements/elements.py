@@ -242,7 +242,10 @@ class CameraTrajectory(BaseSceneElement):
         # TODO
         # 1. Bring 'data' into translation-vector and rotation-quaternion form
         if type(self.data) is tuple:
-            self.data = (self.data[0].tolist(), self.data[1].tolist())
+            if type(self.data[0]) is list:
+                self.data = (self.data[0], self.data[1])
+            else:
+                self.data = (self.data[0].tolist(), self.data[1].tolist())
         # 2. Call set source
         self.set_source(self.data)
 
