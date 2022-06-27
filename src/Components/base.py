@@ -181,7 +181,7 @@ class SceneSettings(BaseComponent):
         }
 
 
-class Camera:
+class CameraState:
     key_position = 'position'
     key_rotation = 'rotation'
     key_fov = 'fov'
@@ -216,13 +216,13 @@ class Viewer(BaseComponent):
         self.data[self.key_elements] = []
         self.data[self.key_scene_id] = scene_id  # default scene_id
         self.component = ComponentType.VIEWER
-        self.camera = Camera([100, 100, 100], [0.5, 0.5, 0.5])
+        self.camera = CameraState([100, 100, 100], [0.5, 0.5, 0.5])
         self.elements = []
 
     def add_element(self, element: BaseSceneElement):
         self.elements.append(element)
 
-    def set_camera(self, camera: Camera):
+    def set_camera(self, camera: CameraState):
         self.camera = camera
 
     def set_scene_id(self, scene_id):

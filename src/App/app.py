@@ -1,5 +1,6 @@
 from copy import deepcopy
 from typing import List
+import re
 
 from flask_socketio import SocketIO
 from flask import Flask
@@ -8,7 +9,7 @@ import json
 import secrets
 import threading
 
-from src.Components.base import Row, Viewer, Camera, ElementTree, Col, SceneSettings, Group
+from src.Components.base import Row, Viewer, ElementTree, Col, SceneSettings, Group
 from src.SceneElements.elements import PotreePointCloud, DefaultPointCloud, LineSet, CameraTrajectory, \
     BaseSceneElement
 
@@ -46,7 +47,7 @@ class Tarasp:
         self._GROUPS: [Group] = []
 
     def run(self):
-        # 1. Convert SceneElements to source (url, r/t, array of tuples of int arrays)
+        # 1. Convert SceneElements to source
         self.convert_scene_elements()
 
         # 2. Turn object tree into a json-component tree
@@ -55,6 +56,7 @@ class Tarasp:
         # 3. Run the application. Open browser by default?
         if self.print_component_tree:
             print(json.dumps(self.COMPONENT_TREE[0], indent=2))
+
         print("[Server]: Starting server at " + self.BASE_URL + ":" + str(self.PORT))
         self.socketio.run(self.app, port=self.PORT)
 
@@ -179,7 +181,7 @@ class Tarasp:
             selected_group.add_id(element_id)
 
     # ----------------------
-    # REST-API to get the data
+    # REST-API
     # ----------------------
 
     @staticmethod
@@ -198,6 +200,7 @@ class Tarasp:
     @staticmethod
     @app.route('/data/<path:file_name>')
     def serve_data(file_name):
+        # TODO: check if its possible to serve any image on the disk: worked for " directory='/home/silas/Downloads/' "
         response = flask.send_from_directory(directory='../../data/', path=file_name, as_attachment=True)
         response.headers.set('Content-Type', 'application/octet-stream')
         return set_cors_headers(response)
@@ -220,13 +223,11 @@ class Tarasp:
 
     ANIMATION = {}
 
-    def add_animation(self, animation_name: str, camera: Camera):
-        if animation_name not in self.ANIMATION.keys():
-            self.ANIMATION[animation_name] = []
-        self.ANIMATION[animation_name].append(camera)
+    def add_animation(self, animation_name: str, func: callable(int)):
+        self.ANIMATION[animation_name] = func
 
-    thread = None
-    thread_lock = threading.Lock()
+    animation_thread = None
+    animation_thread_lock = threading.Lock()
 
     @staticmethod
     @socketio.on('start_animation')
@@ -241,22 +242,18 @@ class Tarasp:
 
         print("[Server]: Starting animation for sceneId " + str(scene_id))
 
-        # TODO: replace with actual camera states that correspond to the animation.
-        state = deepcopy(Tarasp.CURRENT_CAMERA_STATE[scene_id])
-
+        # TODO: add settings: duration of the loop and socketio.sleep
         def send_animation_update():
-            print("#####")
-            print(state)
-            for cam in Tarasp.ANIMATION[animation_name]:
-                print(cam.to_json)
+            for i in range(1000):
+                cam = Tarasp.ANIMATION[animation_name](i)
                 Tarasp.socketio.emit('camera_sync', cam.to_json(), broadcast=False)  # only send to originating user
                 Tarasp.socketio.sleep(0.08)
-            with Tarasp.thread_lock:
-                Tarasp.thread = None
+            with Tarasp.animation_thread_lock:
+                Tarasp.animation_thread = None
 
-        with Tarasp.thread_lock:
-            if Tarasp.thread is None:
-                Tarasp.thread = Tarasp.socketio.start_background_task(target=send_animation_update)
+        with Tarasp.animation_thread_lock:
+            if Tarasp.animation_thread is None:
+                Tarasp.animation_thread = Tarasp.socketio.start_background_task(target=send_animation_update)
 
     @staticmethod
     @socketio.on('camera_sync')

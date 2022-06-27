@@ -6,6 +6,7 @@ from sys import platform
 from typing import Union, List
 from pathlib import Path, PosixPath
 
+import numpy
 import open3d as o3d
 
 from src.colmap_manager import write_pointcloud_o3d
@@ -169,7 +170,6 @@ class DefaultPointCloud(BaseSceneElement):
         self.source = url
 
     def convert_to_source(self):
-        # TODO
         # 1. Bring 'data' into .ply form
         # 2. Save pc or if this point-cloud has been saved before read url
         if type(self.data) is str:
@@ -183,6 +183,10 @@ class DefaultPointCloud(BaseSceneElement):
             write_pointcloud_o3d(saved_path, self.data)
             # TODO paths could depend on the OS. Need to test and verify
             self.set_source(saved_path.as_posix())
+
+        elif type(self.data) is numpy.asarray:
+            # TODO support numpy.arrays
+            print("not yet implemented")
         # 3. Add data-path to source
 
     def to_json(self):
