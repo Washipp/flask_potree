@@ -115,7 +115,7 @@ class PointCloudType(Enum):
 
 class PotreePointCloud(BaseSceneElement):
     key_material = 'material'
-    key_size = 'size'
+    key_color = 'color'
 
     def __init__(self, data, name: str = "PotreePointCloud", group: Union[str, List[str]] = "Default") -> None:
         super().__init__(data, name, group)
@@ -125,6 +125,10 @@ class PotreePointCloud(BaseSceneElement):
 
     def set_source(self, url: str):
         self.source = url
+
+    def set_color(self, color: str):
+        material = {self.key_color: color}
+        self.attributes[self.key_material] = material
 
     def convert_to_source(self):
         # TODO What other type of data to support? Library?
@@ -159,6 +163,8 @@ class PotreePointCloud(BaseSceneElement):
 
 
 class DefaultPointCloud(BaseSceneElement):
+    key_material = 'material'
+    key_color = 'color'
 
     def __init__(self, data, name="Point Cloud", group: Union[str, List[str]] = "Default") -> None:
         super().__init__(data, name, group)
@@ -168,6 +174,10 @@ class DefaultPointCloud(BaseSceneElement):
 
     def set_source(self, url: str):
         self.source = url
+
+    def set_color(self, color: str):
+        material = {self.key_color: color}
+        self.attributes[self.key_material] = material
 
     def convert_to_source(self):
         # 1. Bring 'data' into .ply form
