@@ -9,7 +9,7 @@ import json
 import secrets
 import threading
 
-from src.Components.base import Row, Viewer, ElementTree, Col, SceneSettings, Group
+from src.Components.base import Row, Viewer, ElementTree, Col, SceneSettings, Group, CameraState
 from src.SceneElements.elements import PotreePointCloud, DefaultPointCloud, LineSet, CameraTrajectory, \
     BaseSceneElement
 
@@ -56,6 +56,8 @@ class Tarasp:
         # 3. Run the application. Open browser by default?
         if self.print_component_tree:
             print(json.dumps(self.COMPONENT_TREE[0], indent=2))
+
+        self.replace_front_end_settings()
 
         print("[Server]: Starting server at " + self.BASE_URL + ":" + str(self.PORT))
         self.socketio.run(self.app, port=self.PORT)
@@ -179,6 +181,23 @@ class Tarasp:
                     current_groups.append(selected_group)
                     current_groups = selected_group.groups
             selected_group.add_id(element_id)
+
+    def replace_front_end_settings(self):
+        # open index.html
+        file = open('./front-end/index.html').read()
+
+        # get the strings you want to swap
+        # we get a list of all occurrences and then a tuple. So we extract the first element twice.
+        settings_content = re.findall(r'(window\[\'port\'\] = (\d\d\d\d))', file)[0][0]
+        new_content = f'window[\'port\'] = {self.PORT}'
+
+        # replace
+        replaced = file.replace(settings_content, new_content)
+
+        # output string to new file
+        file = open('./front-end/index.html', 'w')
+        file.write(replaced)
+        file.close()
 
     # ----------------------
     # REST-API
