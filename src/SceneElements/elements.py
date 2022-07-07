@@ -234,34 +234,55 @@ class LineSet(BaseSceneElement):
 
 
 class CameraTrajectory(BaseSceneElement):
-    key_translation = 't'
-    key_rotation = 'r'
     key_image_url = 'imageUrl'
+    key_corners = 'corners'
+    key_cameras = 'cameras'
+    key_link_images = 'linkImages'
 
-    def __init__(self, data, image_url: Union[Path, str], name: str = "Camera Trajectory",
+    def __init__(self,
+                 corners: [],
+                 cameras: [],
+                 link_images: bool = False,
+                 name: str = "Camera Trajectory",
                  group: Union[str, List[str]] = "Default") -> None:
-        super().__init__(data, name, group)
+        super().__init__(corners, name, group)
         self.source = {}
-        if type(image_url) is str:
-            image_url = Path(image_url).as_posix()
-        self.set_image(f"{self.BASE_URL}:{str(self.PORT)}/{image_url}")
         self.type = SceneElementType.CAMERA_TRAJECTORY
+        # if type(image_url) is str:
+        #     image_url = Path(image_url).as_posix()
+        # self.set_image(f"{self.BASE_URL}:{str(self.PORT)}/{image_url}")
+        self.corners = corners
+        self.cameras = cameras
+        self.link_images = link_images
 
-    def set_source(self, source: ([int], [int])):
-        self.source[self.key_translation] = source[0]
-        self.source[self.key_rotation] = source[1]
+    def set_source(self, source: {}):
+        self.source = source
 
     def set_image(self, url: str):
         self.attributes[self.key_image_url] = url
 
     def convert_to_source(self):
         # TODO
-        # 1. Bring 'data' into translation-vector and rotation-quaternion form
-        if type(self.data) is tuple:
-            if type(self.data[0]) is list:
-                self.data = (self.data[0], self.data[1])
-            else:
-                self.data = (self.data[0].tolist(), self.data[1].tolist())
+        # 1. Bring 'corners', 'cameras' and 'link_images' into the correct form
+
+        # replace the image_url to the definite one.
+        for c in self.cameras:
+            if type(c[0]) is numpy.ndarray:
+                c[0] = c[0].tolist()
+                c[1] = c[1].tolist()
+            image_url = c[2]
+            print(image_url)
+            if type(image_url) is str:
+                image_url = Path(image_url).as_posix()
+            c[2] = f"{self.BASE_URL}:{str(self.PORT)}/{image_url}"
+            print(c[2])
+
+        self.data = {
+            self.key_corners: self.corners,
+            self.key_link_images: self.link_images,
+            self.key_cameras: self.cameras
+        }
+
         # 2. Call set source
         self.set_source(self.data)
 

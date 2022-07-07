@@ -14,11 +14,17 @@ rec = pycolmap.Reconstruction(path)
 pcd = pcd_from_colmap(rec)
 saved_path = write_pointcloud_o3d(Path("./data/pointclouds/colmap/demo/sfm.ply"), pcd)
 
+cameras = {}
 for image in rec.images.values():
-    app.add_element(CameraTrajectory(data=(image.tvec, image.qvec),
-                                     name=image.name,
-                                     image_url=f"./data/colmap/{image.name}",
-                                     group="Reconstruction"))
+    if image.camera_id not in cameras.keys():
+        cameras[image.camera_id] = []
+    cameras[image.camera_id].append([image.tvec, image.qvec, f"./data/colmap/{image.name}"])
+
+for camera in rec.cameras.values():
+    h = (camera.height / 2) / 1000
+    w = (camera.width / 2) / 1000
+    corners = [[-h, w, 1], [h, w, 1], [h, -w, 1], [-h, -w, 1]]
+    app.add_element(CameraTrajectory(corners=corners, cameras=cameras[camera.camera_id], link_images=True))
 
 app.add_element(PotreePointCloud(data=saved_path,
                                  name="Point Cloud Reconstruction",

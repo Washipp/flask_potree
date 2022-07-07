@@ -57,6 +57,7 @@ class Tarasp:
         if self.print_component_tree:
             print(json.dumps(self.COMPONENT_TREE[0], indent=2))
 
+        # Replace the Port number in the index.html to change it in the front-end
         self.replace_front_end_settings()
 
         print("[Server]: Starting server at " + self.BASE_URL + ":" + str(self.PORT))
