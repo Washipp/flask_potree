@@ -211,25 +211,25 @@ class Viewer(BaseComponent):
     key_camera = 'camera'
     key_elements = 'elements'
 
-    def __init__(self, scene_id: int = -1) -> None:
+    def __init__(self, scene_id: int = -1, camera_state=([100, 100, 100], [0.5, 0.5, 0.5])) -> None:
         super().__init__()
         self.data[self.key_elements] = []
         self.data[self.key_scene_id] = scene_id  # default scene_id
         self.component = ComponentType.VIEWER
-        self.camera = CameraState([100, 100, 100], [0.5, 0.5, 0.5])
+        self.camera_state = CameraState(camera_state[0], camera_state[1])
         self.elements = []
 
     def add_element(self, element: BaseSceneElement):
         self.elements.append(element)
 
     def set_camera(self, camera: CameraState):
-        self.camera = camera
+        self.camera_state = camera
 
     def set_scene_id(self, scene_id):
         self.data[self.key_scene_id] = scene_id
 
     def to_json(self, component_id: int) -> dict:
-        self.data[self.key_camera] = self.camera.to_json()
+        self.data[self.key_camera] = self.camera_state.to_json()
 
         element_json = []
         for elem in self.elements:
