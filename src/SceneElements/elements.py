@@ -71,16 +71,16 @@ class BaseSceneElement(ABC):
 
     _increment: Incrementer = Incrementer()
 
-    def __init__(self, data, name: str, group: Union[str, List[str]] = "Default") -> None:
+    def __init__(self, data, name: Union[str, List[str]]) -> None:
         super().__init__()
         self.attributes = {}
         self.data = data
         self.element_id = self._get_next_id()
-        self.attributes[self.key_name] = name
-        if isinstance(group, str):
-            self.group = [group]
+        if isinstance(name, str):
+            self.name = [name]
         else:
-            self.group = group
+            self.name = name
+        self.attributes[self.key_name] = name
 
     def set_transformation(self, transformation):
         self.attributes[self.key_transformation] = transformation
@@ -117,8 +117,8 @@ class PotreePointCloud(BaseSceneElement):
     key_material = 'material'
     key_color = 'color'
 
-    def __init__(self, data, name: str = "PotreePointCloud", group: Union[str, List[str]] = "Default") -> None:
-        super().__init__(data, name, group)
+    def __init__(self, data, name: Union[str, List[str]] = "Default") -> None:
+        super().__init__(data, name)
         self.source = ''
         self.data = data
         self.type = SceneElementType.POTREE_PC
@@ -166,8 +166,8 @@ class DefaultPointCloud(BaseSceneElement):
     key_material = 'material'
     key_color = 'color'
 
-    def __init__(self, data, name="Point Cloud", group: Union[str, List[str]] = "Default") -> None:
-        super().__init__(data, name, group)
+    def __init__(self, data, name: Union[str, List[str]] = "Default") -> None:
+        super().__init__(data, name)
         self.source = ''
         self.data = data
         self.type = SceneElementType.DEFAULT_PC
@@ -210,8 +210,8 @@ class DefaultPointCloud(BaseSceneElement):
 
 class LineSet(BaseSceneElement):
 
-    def __init__(self, data, name="Line Set", group: Union[str, List[str]] = "Default") -> None:
-        super().__init__(data, name, group)
+    def __init__(self, data, name: Union[str, List[str]] = "Default") -> None:
+        super().__init__(data, name)
         self.source = []
         self.type = SceneElementType.LINE_SET
 
@@ -243,14 +243,10 @@ class CameraTrajectory(BaseSceneElement):
                  corners: [],
                  cameras: [],
                  link_images: bool = False,
-                 name: str = "Camera Trajectory",
-                 group: Union[str, List[str]] = "Default") -> None:
-        super().__init__(corners, name, group)
+                 name: Union[str, List[str]] = "Default") -> None:
+        super().__init__(corners, name)
         self.source = {}
         self.type = SceneElementType.CAMERA_TRAJECTORY
-        # if type(image_url) is str:
-        #     image_url = Path(image_url).as_posix()
-        # self.set_image(f"{self.BASE_URL}:{str(self.PORT)}/{image_url}")
         self.corners = corners
         self.cameras = cameras
         self.link_images = link_images

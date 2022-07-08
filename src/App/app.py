@@ -1,4 +1,3 @@
-from copy import deepcopy
 from typing import List
 import re
 
@@ -9,7 +8,7 @@ import json
 import secrets
 import threading
 
-from src.Components.base import Row, Viewer, ElementTree, Col, SceneSettings, Group, CameraState
+from src.Components.base import Row, Viewer, ElementTree, Col, SceneSettings, Group
 from src.SceneElements.elements import PotreePointCloud, DefaultPointCloud, LineSet, CameraTrajectory, \
     BaseSceneElement
 
@@ -164,7 +163,7 @@ class Tarasp:
 
     def update_groups(self, elements: List[BaseSceneElement]):
         for element in elements:
-            group_names = element.group
+            group_names = element.name
             element_id = element.element_id
             selected_group = Group("Unknown")
             current_groups = self._GROUPS
@@ -221,6 +220,8 @@ class Tarasp:
     @app.route('/data/<path:file_name>')
     def serve_data(file_name):
         # TODO: check if its possible to serve any image on the disk: worked for " directory='/home/silas/Downloads/' "
+
+        # TODO: check if the file is available and handle the case accordingly.
         response = flask.send_from_directory(directory='../../data/', path=file_name, as_attachment=True)
         response.headers.set('Content-Type', 'application/octet-stream')
         return set_cors_headers(response)

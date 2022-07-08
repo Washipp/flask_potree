@@ -24,10 +24,9 @@ for camera in rec.cameras.values():
     h = (camera.height / 2) / 1000
     w = (camera.width / 2) / 1000
     corners = [[-h, w, 1], [h, w, 1], [h, -w, 1], [-h, -w, 1]]
-    app.add_element(CameraTrajectory(corners=corners, cameras=cameras[camera.camera_id], link_images=True))
+    app.add_element(CameraTrajectory(corners=corners, cameras=cameras[camera.camera_id],
+                                     name=["dir1", "dir2", "Point Cloud Reconstruction"], link_images=True))
 
-app.add_element(PotreePointCloud(data=saved_path,
-                                 name="Point Cloud Reconstruction",
-                                 group="Reconstruction"))
+app.add_element(PotreePointCloud(data=saved_path, name=["dir1", "dir2", "Point Cloud Reconstruction"]))
 
 app.run()
