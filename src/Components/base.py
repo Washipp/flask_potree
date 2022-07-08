@@ -211,7 +211,7 @@ class Viewer(BaseComponent):
     key_camera = 'camera'
     key_elements = 'elements'
 
-    def __init__(self, scene_id: int = -1, camera_state=([100, 100, 100], [0.5, 0.5, 0.5])) -> None:
+    def __init__(self, scene_id: int = -1, camera_state=([100, 100, 100], [0.5, 0.5, 0.5, 1])) -> None:
         super().__init__()
         self.data[self.key_elements] = []
         self.data[self.key_scene_id] = scene_id  # default scene_id

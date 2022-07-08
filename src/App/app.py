@@ -1,3 +1,5 @@
+import os
+from os.path import exists
 from typing import List
 import re
 
@@ -220,8 +222,11 @@ class Tarasp:
     @app.route('/data/<path:file_name>')
     def serve_data(file_name):
         # TODO: check if its possible to serve any image on the disk: worked for " directory='/home/silas/Downloads/' "
-
-        # TODO: check if the file is available and handle the case accordingly.
+        if not exists('data/' + file_name):
+            print(os.getcwd())
+            response = flask.make_response("[Server]: File not found: " + file_name)
+            response.status_code = 404
+            return set_cors_headers(response)
         response = flask.send_from_directory(directory='../../data/', path=file_name, as_attachment=True)
         response.headers.set('Content-Type', 'application/octet-stream')
         return set_cors_headers(response)
