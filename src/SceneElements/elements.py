@@ -1,3 +1,4 @@
+import hashlib
 import subprocess
 from abc import ABC, abstractmethod
 from enum import Enum
@@ -20,7 +21,8 @@ def ply_to_potree(ply_location: str, overwrite=False) -> str:
         Path(base_converted_directory).mkdir(parents=True)
     # TODO: check the OS and then execute the command.
 
-    name = ply_location.split('/')[-1]
+    name = str(int(hashlib.md5(ply_location.encode()).hexdigest(), 16))
+    print(f"[Info]: Hash of path '{ply_location}' is '{name}'")
     target = base_converted_directory + name
 
     full_command = ''
@@ -28,9 +30,9 @@ def ply_to_potree(ply_location: str, overwrite=False) -> str:
     if platform == "linux":
         # Linux
         base_command = './converter/PotreeConverter'
-        full_command = base_command + ' ' + ply_location + ' -o ' + target
+        full_command = f"{base_command} {ply_location} -o {target}"
     elif platform == "darwin":
-        # OS X
+        # OS X...
         # TODO add support for MacOS and Windows.
         full_command = ''
     elif platform == "win32":
@@ -80,7 +82,7 @@ class BaseSceneElement(ABC):
             self.name = [name]
         else:
             self.name = name
-        self.attributes[self.key_name] = name
+        self.attributes[self.key_name] = '/'.join(self.name)
 
     def set_transformation(self, transformation):
         self.attributes[self.key_transformation] = transformation
