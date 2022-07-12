@@ -4,7 +4,10 @@ from src.SceneElements.elements import PotreePointCloud
 
 app = Tarasp(print_component_tree=True)
 
-app.add_element(PotreePointCloud(data='../data/mesh.ply'))
+pc = PotreePointCloud(data='../data/mesh.ply')
+# pc.set_color('#ff0000')
+
+app.add_element(pc)
 
 
 def animation_function(index: int) -> CameraState:
