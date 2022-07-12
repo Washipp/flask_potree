@@ -1,10 +1,13 @@
 import os
+import time
 from os.path import exists
+from pathlib import Path
 from typing import List
 import re
 
 from flask_socketio import SocketIO
-from flask import Flask
+from flask import Flask, request
+from flask_cors import CORS, cross_origin
 import flask
 import json
 import secrets
@@ -15,16 +18,21 @@ from src.SceneElements.elements import PotreePointCloud, DefaultPointCloud, Line
     BaseSceneElement
 
 
-# Allow all accesses by default.
+# Allow all accesses by default. Only works for GET requests, see flask_cors for other requests.
 def set_cors_headers(response: flask.Response):
     response.headers.add("Access-Control-Allow-Origin", "*")
     response.headers.add("Access-Control-Allow-Headers", "*")
     response.headers.add("Access-Control-Allow-Methods", "*")
     return response
 
+def create_404_response(error: str):
+    response = flask.make_response("[Server]: " + error)
+    response.status_code = 404
+    return set_cors_headers(response)
 
 class Tarasp:
     app = Flask(__name__)
+    CORS(app)
     socketio = SocketIO(app, logger=True, engineio_logger=True, cors_allowed_origins='*')
 
     COMPONENT_TREE = []
@@ -34,11 +42,12 @@ class Tarasp:
     BASE_URL = 'http://127.0.0.1'
     PORT = 5000
 
-    def __init__(self, port: int = 5000,  print_component_tree=False):
+    def __init__(self, port: int = 5000, output_path='./data/screenshots', print_component_tree=False):
         self.PORT = port
         BaseSceneElement.PORT = port
         self.app.config['SECRET_KEY'] = secrets.token_hex(16)
 
+        Tarasp.app.config['UPLOAD_FOLDER'] = output_path
         self.print_component_tree = print_component_tree
 
         self._POINT_CLOUDS: [PotreePointCloud] = []
@@ -223,10 +232,7 @@ class Tarasp:
     def serve_data(file_name):
         # TODO: check if its possible to serve any image on the disk: worked for " directory='/home/silas/Downloads/' "
         if not exists('data/' + file_name):
-            print(os.getcwd())
-            response = flask.make_response("[Server]: File not found: " + file_name)
-            response.status_code = 404
-            return set_cors_headers(response)
+            return create_404_response("File not found: " + file_name)
         response = flask.send_from_directory(directory='../../data/', path=file_name, as_attachment=True)
         response.headers.set('Content-Type', 'application/octet-stream')
         return set_cors_headers(response)
@@ -237,13 +243,41 @@ class Tarasp:
     def get_component_tree(scene_id):
         scene_id = int(scene_id)
         if len(Tarasp.COMPONENT_TREE) < scene_id:
-            response = flask.make_response("[Server]: Error: No component tree found with the provided ID")
-            response.status_code = 404
-            return set_cors_headers(response)
+            return create_404_response("Error: No component tree found with the provided ID")
         else:
             response = flask.make_response(flask.jsonify(Tarasp.COMPONENT_TREE[scene_id]))
             response.status_code = 200
             return set_cors_headers(response)
+
+    @staticmethod
+    @app.route('/upload/<path:location>', methods=['POST', 'OPTIONS'])
+    @cross_origin()
+    def upload_file(location):
+        # Some browsers send an OPTIONS request. Here we ack it
+        if request.method == 'OPTIONS':
+            response = flask.make_response("Options supported.")
+            response.status_code = 200
+            return response
+        # check if the post request has the file part
+        if 'file' not in request.files:
+            response = flask.make_response("[Server]: No file provided")
+            response.status_code = 404
+            return response
+        file = request.files['file']
+        if file:
+            save_path = os.path.join(Tarasp.app.config['UPLOAD_FOLDER'], location)
+            if not exists(save_path):
+                Path(save_path).mkdir(parents=True)
+            # TODO: new naming concept, here we simply the current time in ms.
+            file.save(os.path.join(save_path, str(time.time()) + '.png'))
+            response = flask.make_response("Upload successful.")
+            response.status_code = 200
+            return response
+        else:
+            response = flask.make_response("Upload failed.")
+            response.status_code = 200
+            return response
+
 
     # SocketIO
 
