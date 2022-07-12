@@ -73,7 +73,7 @@ class BaseSceneElement(ABC):
 
     _increment: Incrementer = Incrementer()
 
-    def __init__(self, data, name: Union[str, List[str]]) -> None:
+    def __init__(self, data, name: Union[str, List[str]], transformation: numpy.ndarray = None) -> None:
         super().__init__()
         self.attributes = {}
         self.data = data
@@ -83,9 +83,11 @@ class BaseSceneElement(ABC):
         else:
             self.name = name
         self.attributes[self.key_name] = '/'.join(self.name)
+        if transformation is not None:
+            self.set_transformation(transformation)
 
-    def set_transformation(self, transformation):
-        self.attributes[self.key_transformation] = transformation
+    def set_transformation(self, transformation: numpy.ndarray):
+        self.attributes[self.key_transformation] = numpy.concatenate(transformation).tolist()
 
     def _get_next_id(self) -> int:
         return self._increment()
@@ -119,8 +121,11 @@ class PotreePointCloud(BaseSceneElement):
     key_material = 'material'
     key_color = 'color'
 
-    def __init__(self, data, name: Union[str, List[str]] = "Default") -> None:
-        super().__init__(data, name)
+    def __init__(self,
+                 data,
+                 name: Union[str, List[str]] = "Default",
+                 transformation: numpy.ndarray = None) -> None:
+        super().__init__(data, name, transformation)
         self.source = ''
         self.data = data
         self.type = SceneElementType.POTREE_PC
@@ -168,8 +173,10 @@ class DefaultPointCloud(BaseSceneElement):
     key_material = 'material'
     key_color = 'color'
 
-    def __init__(self, data, name: Union[str, List[str]] = "Default") -> None:
-        super().__init__(data, name)
+    def __init__(self, data,
+                 name: Union[str, List[str]] = "Default",
+                 transformation: numpy.ndarray = None) -> None:
+        super().__init__(data, name, transformation)
         self.source = ''
         self.data = data
         self.type = SceneElementType.DEFAULT_PC
@@ -212,8 +219,11 @@ class DefaultPointCloud(BaseSceneElement):
 
 class LineSet(BaseSceneElement):
 
-    def __init__(self, data, name: Union[str, List[str]] = "Default") -> None:
-        super().__init__(data, name)
+    def __init__(self,
+                 data,
+                 name: Union[str, List[str]] = "Default",
+                 transformation: numpy.ndarray = None) -> None:
+        super().__init__(data, name, transformation)
         self.source = []
         self.type = SceneElementType.LINE_SET
 
@@ -245,8 +255,9 @@ class CameraTrajectory(BaseSceneElement):
                  corners: [],
                  cameras: [],
                  link_images: bool = False,
-                 name: Union[str, List[str]] = "Default") -> None:
-        super().__init__(corners, name)
+                 name: Union[str, List[str]] = "Default",
+                 transformation: numpy.ndarray = None) -> None:
+        super().__init__(corners, name, transformation)
         self.source = {}
         self.type = SceneElementType.CAMERA_TRAJECTORY
         self.corners = corners
