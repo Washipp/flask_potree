@@ -112,14 +112,16 @@ class SceneElementType(Enum):
     LINE_SET = 'line_set'
 
 
-class PointCloudType(Enum):
-    POTREE = 'potree'
-    DEFAULT = 'default'
-
+class PointShape(Enum):
+    CIRCLE = 'CIRCLE'
+    SQUARED = 'SQUARE'
 
 class PotreePointCloud(BaseSceneElement):
     key_material = 'material'
     key_color = 'color'
+    key_point_size = 'pointSize'
+    key_point_type = 'pointType'
+    key_opacity = 'opacity'
 
     def __init__(self,
                  data,
@@ -129,13 +131,22 @@ class PotreePointCloud(BaseSceneElement):
         self.source = ''
         self.data = data
         self.type = SceneElementType.POTREE_PC
+        self.material = {}
 
     def set_source(self, url: str):
         self.source = url
 
     def set_color(self, color: str):
-        material = {self.key_color: color}
-        self.attributes[self.key_material] = material
+        self.material[self.key_color] = color
+
+    def set_point_size(self, size: float):
+        self.material[self.key_point_size] = size
+
+    def set_point_type(self, point_type: PointShape):
+        self.material[self.key_point_type] = point_type.value
+
+    def set_opacity(self, opacity: float):
+        self.material[self.key_opacity] = opacity
 
     def convert_to_source(self):
         # TODO What other type of data to support? Library?
@@ -161,6 +172,7 @@ class PotreePointCloud(BaseSceneElement):
         self.set_source(path)
 
     def to_json(self):
+        self.attributes[self.key_material] = self.material
         return {
             self.key_scene_type: self.type.value,
             self.key_element_id: self.element_id,
