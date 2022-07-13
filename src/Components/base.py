@@ -183,15 +183,24 @@ class SceneSettings(BaseComponent):
 
 class CameraState:
     key_position = 'position'
-    key_rotation = 'rotation'
+    key_quaternion = 'quaternion'
+    key_up = 'up'
     key_fov = 'fov'
     key_near = 'near'
     key_far = 'far'
 
-    def __init__(self, position: List, rotation: List, fov=60, near=0.1, far=100000) -> None:
+    def __init__(self,
+                 position: List[float],
+                 quaternion: List[float],
+                 up=None,
+                 fov=60, near=0.1, far=100000) -> None:
         super().__init__()
+        if up is None:
+            self.up = [0, 1, 0]
+        else:
+            self.up = up
         self.position = position
-        self.rotation = rotation
+        self.quaternion = quaternion
         self.fov = fov
         self.near = near
         self.far = far
@@ -199,7 +208,8 @@ class CameraState:
     def to_json(self) -> dict:
         return {
             self.key_position: self.position,
-            self.key_rotation: self.rotation,
+            self.key_quaternion: self.quaternion,
+            self.key_up: self.up,
             self.key_fov: self.fov,
             self.key_near: self.near,
             self.key_far: self.far,
