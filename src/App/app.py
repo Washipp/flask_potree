@@ -2,7 +2,7 @@ import os
 import time
 from os.path import exists
 from pathlib import Path
-from typing import List
+from typing import List, Callable, Union
 import re
 
 from flask_socketio import SocketIO
@@ -13,7 +13,7 @@ import json
 import secrets
 import threading
 
-from src.Components.base import Row, Viewer, ElementTree, Col, SceneSettings, Group
+from src.Components.base import Row, Viewer, ElementTree, Col, SceneSettings, Group, CameraState
 from src.SceneElements.elements import PotreePointCloud, DefaultPointCloud, LineSet, CameraTrajectory, \
     BaseSceneElement
 
@@ -25,15 +25,17 @@ def set_cors_headers(response: flask.Response):
     response.headers.add("Access-Control-Allow-Methods", "*")
     return response
 
+
 def create_404_response(error: str):
     response = flask.make_response("[Server]: " + error)
     response.status_code = 404
     return set_cors_headers(response)
 
+
 class Tarasp:
     app = Flask(__name__)
     CORS(app)
-    socketio = SocketIO(app, logger=True, engineio_logger=True, cors_allowed_origins='*')
+    socketio = SocketIO(app, cors_allowed_origins='*')
 
     COMPONENT_TREE = []
 
@@ -278,13 +280,22 @@ class Tarasp:
             response.status_code = 200
             return response
 
-
     # SocketIO
 
     ANIMATION = {}
 
-    def add_animation(self, animation_name: str, func: callable(int)):
-        self.ANIMATION[animation_name] = func
+    def add_animation(self, animation_name: str,
+                      func: Callable[[int], Union[CameraState, None]],
+                      screenshot: bool = False,
+                      screenshot_directory: str = '',
+                      sleep_duration: float = 0.08):
+
+        self.ANIMATION[animation_name] = {
+            "function": func,
+            "screenshot": screenshot,
+            "screenshotDirectory": screenshot_directory,
+            "sleep": sleep_duration
+        }
 
     animation_thread = None
     animation_thread_lock = threading.Lock()
@@ -295,6 +306,7 @@ class Tarasp:
         data = json.loads(data)
         animation_name = data['animationName']
         scene_id = int(data['sceneId'])
+        running = bool(data['running'])
 
         if animation_name not in Tarasp.ANIMATION.keys():
             print("[Server]: Error, no animation found with name " + animation_name)
@@ -302,12 +314,29 @@ class Tarasp:
 
         print("[Server]: Starting animation for sceneId " + str(scene_id))
 
-        # TODO: add settings: duration of the loop and socketio.sleep
         def send_animation_update():
-            for i in range(1000):
-                cam = Tarasp.ANIMATION[animation_name](i)
-                Tarasp.socketio.emit('camera_sync', cam.to_json(), broadcast=False)  # only send to originating user
-                Tarasp.socketio.sleep(0.08)
+            animation = Tarasp.ANIMATION[animation_name]
+            sleep_duration = animation['sleep']
+            animation_data = {
+                'screenshot': animation['screenshot'],
+                'screenshotDirectory': animation['screenshotDirectory']
+            }
+
+            i = 0
+            while True:
+                if not running:  # TODO make it update the variable somehow?
+                    break
+                cam = animation['function'](i)
+                if cam is None:
+                    break
+                else:
+                    cam = cam.to_json()
+
+                animation_data['cameraState'] = cam
+
+                Tarasp.socketio.emit('animation', animation_data, broadcast=False)  # only send to originating user
+                Tarasp.socketio.sleep(sleep_duration)
+                i += 1
             with Tarasp.animation_thread_lock:
                 Tarasp.animation_thread = None
 
