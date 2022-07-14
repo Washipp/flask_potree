@@ -307,8 +307,8 @@ class Tarasp:
 
     ANIMATION = {}
 
-    def add_animation(self, animation_name: str,
-                      func: Callable[[int], Union[CameraState, None]],
+    def add_animation(self, func: Callable[[int], Union[CameraState, None]],
+                      animation_name: str = "animation_1",
                       screenshot: bool = False,
                       screenshot_directory: str = '',
                       sleep_duration: float = 0.08):

@@ -12,14 +12,15 @@ app.add_element(pc)
 
 
 def animation_function(index: int):
-    if index > 50:
+    if index > 100:
         return None
-    return CameraState([50, 50 + (index % 50), 50 + (index % 50)], [0.5, 0.5, 0.5, 0.5])
+    return CameraState([-11.907696868, -33.0262523 - index, 3.9975077 + index / 2],
+                       [0.42302607912, -0.06315283658, -0.1015528383, 0.89819133],
+                       up=[0.12899716547507342, 0.621471914811951, 0.7727434182180807])
 
 
-app.add_animation("animation_1",
-                  animation_function,
-                  sleep_duration=0.5,
+app.add_animation(animation_function,
+                  sleep_duration=1,
                   screenshot=True,
                   screenshot_directory='test-directory')
 
