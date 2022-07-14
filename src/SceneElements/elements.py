@@ -65,6 +65,7 @@ class BaseSceneElement(ABC):
     key_scene_type = 'sceneType'
     key_source = 'source'
     key_attributes = 'attributes'
+    key_material = 'material'
 
     DEFAULT_DATA_PATH = './data/'
 
@@ -85,6 +86,7 @@ class BaseSceneElement(ABC):
         self.attributes[self.key_name] = '/'.join(self.name)
         if transformation is not None:
             self.set_transformation(transformation)
+        self.material = {}
 
     def set_transformation(self, transformation: numpy.ndarray):
         self.attributes[self.key_transformation] = numpy.concatenate(transformation).tolist()
@@ -116,8 +118,8 @@ class PointShape(Enum):
     CIRCLE = 'CIRCLE'
     SQUARED = 'SQUARE'
 
+
 class PotreePointCloud(BaseSceneElement):
-    key_material = 'material'
     key_color = 'color'
     key_point_size = 'pointSize'
     key_point_type = 'pointType'
@@ -125,13 +127,24 @@ class PotreePointCloud(BaseSceneElement):
 
     def __init__(self,
                  data,
+                 color: str = None,
+                 point_size: float = None,
+                 point_type: PointShape = None,
+                 opacity: float = None,
                  name: Union[str, List[str]] = "Default",
                  transformation: numpy.ndarray = None) -> None:
         super().__init__(data, name, transformation)
         self.source = ''
         self.data = data
         self.type = SceneElementType.POTREE_PC
-        self.material = {}
+        if color is not None:
+            self.set_color(color)
+        if point_size is not None:
+            self.set_point_size(point_size)
+        if point_type is not None:
+            self.set_point_type(point_type)
+        if opacity is not None:
+            self.set_opacity(opacity)
 
     def set_source(self, url: str):
         self.source = url
@@ -231,16 +244,38 @@ class DefaultPointCloud(BaseSceneElement):
 
 class LineSet(BaseSceneElement):
 
+    key_opacity = 'opacity'
+    key_color = 'color'
+    key_line_width = 'lineWidth'
+
     def __init__(self,
                  data,
+                 opacity: float = None,
+                 color: str = None,
+                 line_width: float = None,
                  name: Union[str, List[str]] = "Default",
                  transformation: numpy.ndarray = None) -> None:
         super().__init__(data, name, transformation)
         self.source = []
         self.type = SceneElementType.LINE_SET
+        if color is not None:
+            self.set_color(color)
+        if line_width is not None:
+            self.set_line_width(line_width)
+        if opacity is not None:
+            self.set_opacity(opacity)
 
     def set_source(self, lines: []):
         self.source = lines
+
+    def set_color(self, color: str):
+        self.material[self.key_color] = color
+
+    def set_opacity(self, opacity: float):
+        self.material[self.key_opacity] = opacity
+
+    def set_line_width(self, width: float):
+        self.material[self.key_line_width] = width
 
     def convert_to_source(self):
         # TODO I'm assuming the data is correct.
@@ -249,6 +284,7 @@ class LineSet(BaseSceneElement):
         self.set_source(self.data)
 
     def to_json(self):
+        self.attributes[self.key_material] = self.material
         return {
             self.key_scene_type: self.type.value,
             self.key_element_id: self.element_id,
@@ -263,10 +299,19 @@ class CameraTrajectory(BaseSceneElement):
     key_cameras = 'cameras'
     key_link_images = 'linkImages'
 
+    key_opacity = 'opacity'
+    key_color = 'color'
+    key_frustum_size = 'frustumSize'
+    key_line_width = 'lineWidth'
+
     def __init__(self,
                  corners: [],
                  cameras: [],
                  link_images: bool = False,
+                 opacity: float = None,
+                 color: str = None,
+                 frustum_size: float = None,
+                 line_width: float = None,
                  name: Union[str, List[str]] = "Default",
                  transformation: numpy.ndarray = None) -> None:
         super().__init__(corners, name, transformation)
@@ -275,9 +320,29 @@ class CameraTrajectory(BaseSceneElement):
         self.corners = corners
         self.cameras = cameras
         self.link_images = link_images
+        if color is not None:
+            self.set_color(color)
+        if frustum_size is not None:
+            self.set_frustum_size(frustum_size)
+        if line_width is not None:
+            self.set_line_width(line_width)
+        if opacity is not None:
+            self.set_opacity(opacity)
 
     def set_source(self, source: {}):
         self.source = source
+
+    def set_color(self, color: str):
+        self.material[self.key_color] = color
+
+    def set_frustum_size(self, size: float):
+        self.material[self.key_frustum_size] = size
+
+    def set_opacity(self, opacity: float):
+        self.material[self.key_opacity] = opacity
+
+    def set_line_width(self, width: float):
+        self.material[self.key_line_width] = width
 
     def set_image(self, url: str):
         self.attributes[self.key_image_url] = url
@@ -308,6 +373,7 @@ class CameraTrajectory(BaseSceneElement):
         self.set_source(self.data)
 
     def to_json(self):
+        self.attributes[self.key_material] = self.material
         return {
             self.key_scene_type: self.type.value,
             self.key_element_id: self.element_id,
