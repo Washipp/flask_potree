@@ -174,13 +174,30 @@ class Tarasp:
         else:
             self.COMPONENT_TREE.append([tree])
 
+    used_names = {}
+
     def update_groups(self, elements: List[BaseSceneElement]):
+
+        # Real ugly way to check if different scene elements have the same name.
+        # ----
+        type_key = "unknown"
+        if len(elements) > 0:
+            type_key = str(type(elements[0]))
         for element in elements:
-            group_names = element.name
+            name_as_key = json.dumps(element.name)
+            if name_as_key in self.used_names.keys():
+                if self.used_names[name_as_key] != type_key:
+                    raise Exception(f"Trying to group different types together: {type_key}"
+                                    f" and {self.used_names[name_as_key]}")
+            else:
+                self.used_names[name_as_key] = type_key
+
+            # ------
+            # Grouping continues here.
             element_id = element.element_id
             selected_group = Group("Unknown")
             current_groups = self._GROUPS
-            for name in group_names:
+            for name in element.name:  # element.name is a list of strings. e.g. ["dir1", "dir2", "name"]
                 found = False
                 for group in current_groups:
                     if group.name == name:  # found, group already exists
@@ -195,6 +212,11 @@ class Tarasp:
                     current_groups = selected_group.groups
             selected_group.add_id(element_id)
 
+    # Why use regex instead of a template variable?
+    # 1) Template variables can only be inserted in non-script tags but there would be a work around.
+    # 2) When using a template variable, the index.html changes. That means that every time the front-end gets built,
+    #    this has to be inserted again or automated somehow as Angular cannot deal with these template variables.
+    # 3) The index.html is quite small. This shouldn't have a big performance impact.
     def replace_front_end_settings(self):
         # open index.html
         file = open('./front-end/index.html').read()
@@ -266,6 +288,7 @@ class Tarasp:
             response.status_code = 404
             return response
         file = request.files['file']
+
         if file:
             save_path = os.path.join(Tarasp.app.config['UPLOAD_FOLDER'], location)
             if not exists(save_path):
