@@ -357,11 +357,9 @@ class CameraTrajectory(BaseSceneElement):
                 c[0] = c[0].tolist()
                 c[1] = c[1].tolist()
             image_url = c[2]
-            print(image_url)
             if type(image_url) is str:
                 image_url = Path(image_url).as_posix()
             c[2] = f"{self.BASE_URL}:{str(self.PORT)}/{image_url}"
-            print(c[2])
 
         self.data = {
             self.key_corners: self.corners,
